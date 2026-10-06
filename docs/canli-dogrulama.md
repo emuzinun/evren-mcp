@@ -20,3 +20,11 @@
 - Claude Code içinden `diagnostics` → `istemci_elicitation` değeri.
 - Araç çağrısında izin sorusu çıkıyor mu.
 - Görev 13'ten sonra: `/` menüsünde akışların tam adı.
+
+## 06.10.2026 — İnceleme düzeltmelerinden sonra
+
+`today_spend` gerçek defterde salt okuma ile `[ölçüldü]`: ilk sayfa 50 satır,
+47'sinde `reference_id`, 50'sinde `id` dolu; türler HOLD, RELEASE, REWARD,
+SETTLE, SYSTEM_GRANT. UTC gününün 3 satırı dünkü işlerin `SYSTEM_GRANT`
+iadeleri → bugünkü harcama 0 (iadeler bugünkü harcama sayılmıyor, doğru).
+İkinci çağrı önbellekten (0,2 sn).

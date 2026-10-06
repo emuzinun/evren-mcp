@@ -4,9 +4,12 @@
 
 ## Nerede kaldık
 
-Planın 13 görevi yazıldı, testler geçiyor. Sunucu Claude Code'a kullanıcı
-kapsamında kayıtlı (`evren`); okuma araçları gerçek platformda denendi
-(`docs/canli-dogrulama.md`).
+Planın 13 görevi yazıldı; bağımsız kod incelemesinin 2 kritik + 5 önemli
+bulgusu düzeltildi (günlük tavan hesabı, eşzamanlı başlatma, belirsiz yanıt,
+akış hataları). 109 test geçiyor. Sunucu Claude Code'a kullanıcı kapsamında
+kayıtlı (`evren`); okuma araçları ve günlük harcama hesabı gerçek platformda
+denendi (`docs/canli-dogrulama.md`).
+Ertelenen küçük bulgular Sıradaki 5'te.
 
 ## Sıradaki
 
@@ -16,3 +19,7 @@ kapsamında kayıtlı (`evren`); okuma araçları gerçek platformda denendi
    araç izin sorusu, `/` menüsünde akışların tam adı.
 3. **GitHub:** gizli repo (kullanıcı onayıyla).
 4. **Lisans kararı** (açık kaynak yapılmadan önce).
+5. **Ertelenen bulgular:** nan/inf tavan, http şemasına anahtar, günlük yazımı
+   patlarsa iş kimliği, stop_training işareti, upload kuru/gerçek ayrımı, açık
+   tekliflerin tavana sayılması (açıklama), indirme yarışı, bozuk created_at,
+   başarısız işte iade doğrulaması.
