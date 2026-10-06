@@ -16,9 +16,10 @@ Ertelenen küçük bulgular Sıradaki 5'te.
 1. **İlk gerçek eğitim yapıldı** (06.10, 0,14 CR, +15 puan) → `docs/canli-dogrulama.md`.
 2. **Claude Code içi doğrulama:** `diagnostics` → `istemci_elicitation`,
    araç izin sorusu, `/` menüsünde akışların tam adı.
-3. **GitHub:** gizli repo açıldı (06.10); açık yapma kararı kullanıcının.
-4. **Lisans kararı** (açık kaynak yapılmadan önce).
-5. **Ertelenen bulgular:** nan/inf tavan, http şemasına anahtar, günlük yazımı
+3. **Herkese açma hazırlığı** (ilk public repo): e-posta, iç belgeler, test
+   kimlikleri, lisans, şartlar, README düzeni → `docs/yayina-hazirlik.md`.
+   Repo şimdilik gizli; karar kullanıcının.
+4. **Ertelenen bulgular:** nan/inf tavan, http şemasına anahtar, günlük yazımı
    patlarsa iş kimliği, stop_training işareti, upload kuru/gerçek ayrımı, açık
    tekliflerin tavana sayılması (açıklama), indirme yarışı, bozuk created_at,
    başarısız işte iade doğrulaması.

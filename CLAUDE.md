@@ -1,7 +1,7 @@
 ## Yönlendirme
 Yığın: Python 3.13 · `mcp` 2.3 (`MCPServer`, stdio) · httpx · uv
 Komutlar: `uv run pytest -q` · `uv run evren-mcp` (stdio sunucusu)
-Belgeler: `docs/tasarim.md` (tasarım) · `docs/plan.md` (uygulama planı) ·
+Belgeler: `docs/tasarim.md` (tasarım) · `docs/plan.md` (uygulama planı) · `docs/yayina-hazirlik.md` ·
 `docs/canli-dogrulama.md` (gerçek platformda ölçülenler) · README.md
 
 ---
