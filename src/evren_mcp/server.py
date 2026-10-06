@@ -8,7 +8,7 @@ from importlib.metadata import PackageNotFoundError, version
 from mcp.server.mcpserver import Context, MCPServer
 from mcp.types import ToolAnnotations
 
-from . import account, datasets, evaluation, training
+from . import account, datasets, evaluation, models, training
 from .config import Settings, load_settings
 from .errors import EvrenError
 from .journal import Journal
@@ -24,6 +24,7 @@ INSTRUCTIONS = (
 )
 RO = ToolAnnotations(readOnlyHint=True, openWorldHint=True)
 SPEND = ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=True)
+LOCAL = ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=True)
 
 
 def _version() -> str:
@@ -107,6 +108,11 @@ def build_server(settings: Settings, platform: Platform | None = None,
         return evaluation.evaluate(p, qb, settings, model_version_id=model_version_id,
                                    dataset_id=dataset_id, dataset_version_id=dataset_version_id,
                                    split=split, image_size=image_size)
+
+    @srv.tool(name="download_model", annotations=LOCAL,
+              description="Eğitilmiş modelin ağırlık dosyasını (best.pt) indirme klasörüne indirir.")
+    def download_model_tool(model_version_id: str) -> dict:
+        return models.download_model(p, settings, model_version_id)
 
     return srv
 

@@ -26,3 +26,37 @@ def test_evaluate_rejects_bad_split(platform, fast_settings):
     with pytest.raises(EvrenError, match="bölme"):
         evaluate(platform, QuoteBook(), fast_settings, model_version_id=MODEL, dataset_id=DS,
                  dataset_version_id=VER, split="dogrulama")
+
+
+from pathlib import Path
+
+import httpx
+
+from evren_mcp.models import download_model
+
+
+def test_download_model_writes_under_download_dir(fake, platform, fast_settings):
+    fake.on("GET", f"/models/versions/{MODEL}/download",
+            (200, envelope({"download_url": "/api/v1/files/m/best.pt", "filename": "best.pt"})))
+    fake.on("GET", "/files/m/best.pt", lambda r: httpx.Response(200, content=b"x" * 2000))
+    out = download_model(platform, fast_settings, MODEL)
+    assert out["dosya"].endswith("best.pt")
+    assert out["dosya"].startswith(str(fast_settings.download_dir))
+
+
+def test_download_sanitizes_filename(fake, platform, fast_settings):
+    fake.on("GET", f"/models/versions/{MODEL}/download",
+            (200, envelope({"download_url": "/api/v1/files/m/x", "filename": "../../evil.pt"})))
+    fake.on("GET", "/files/m/x", lambda r: httpx.Response(200, content=b"x"))
+    out = download_model(platform, fast_settings, MODEL)
+    assert Path(out["dosya"]).parent.parent == fast_settings.download_dir
+    assert Path(out["dosya"]).name == "evil.pt"
+
+
+def test_download_refuses_overwrite(fake, platform, fast_settings):
+    fake.on("GET", f"/models/versions/{MODEL}/download",
+            (200, envelope({"download_url": "/api/v1/files/m/best.pt", "filename": "best.pt"})))
+    fake.on("GET", "/files/m/best.pt", lambda r: httpx.Response(200, content=b"x"))
+    download_model(platform, fast_settings, MODEL)
+    with pytest.raises(EvrenError, match="zaten var"):
+        download_model(platform, fast_settings, MODEL)
