@@ -28,3 +28,12 @@
 SETTLE, SYSTEM_GRANT. UTC gününün 3 satırı dünkü işlerin `SYSTEM_GRANT`
 iadeleri → bugünkü harcama 0 (iadeler bugünkü harcama sayılmıyor, doğru).
 İkinci çağrı önbellekten (0,2 sn).
+
+## 06.10.2026 — İlk gerçek eğitim (Adım 2)
+
+Kullanıcı onayıyla, `evren_mcp.training` doğrudan çağrılarak (Claude Code
+araçları bu oturumda yüklü değildi; akış aynı) `[ölçüldü]`:
+- `estimate`: teklif `T-51B553`, tahmin 0,54 CR, en kötü 1,82, bugünkü harcama 0.
+- `start`: iş `…`, `EXPORTING` → 1 dk içinde `TRAINING` → `COMPLETED`.
+- Gerçek maliyet 0,14 CR. Fine-tune 1. epoch mAP50 0,356 (ağırlık yükleniyor).
+- `status` bitişi günlüğe yazdı: puan 1.263 → 1.278, `puan_farki: 15`.

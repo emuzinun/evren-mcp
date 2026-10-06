@@ -13,11 +13,10 @@ Ertelenen küçük bulgular Sıradaki 5'te.
 
 ## Sıradaki
 
-1. **İlk gerçek eğitim:** platformun disk sorunu (yazarın ölçümleri) düzelince
-   `/egit` ile 5 epoch'luk küçük iş (~0,5 CR), kullanıcı onayıyla.
+1. **İlk gerçek eğitim yapıldı** (06.10, 0,14 CR, +15 puan) → `docs/canli-dogrulama.md`.
 2. **Claude Code içi doğrulama:** `diagnostics` → `istemci_elicitation`,
    araç izin sorusu, `/` menüsünde akışların tam adı.
-3. **GitHub:** gizli repo (kullanıcı onayıyla).
+3. **GitHub:** gizli repo açıldı (06.10); açık yapma kararı kullanıcının.
 4. **Lisans kararı** (açık kaynak yapılmadan önce).
 5. **Ertelenen bulgular:** nan/inf tavan, http şemasına anahtar, günlük yazımı
    patlarsa iş kimliği, stop_training işareti, upload kuru/gerçek ayrımı, açık
