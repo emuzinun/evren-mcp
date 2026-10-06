@@ -64,8 +64,16 @@ def get_standing(p: Platform) -> dict:
         scores = [u["score"] for u in users if isinstance(u.get("score"), (int, float))]
         inside = any(u.get("username") == me.get("username") for u in users)
         limit = min(scores) if len(scores) >= 10 else None
-        gap = 0 if inside or limit is None else max(0, limit - points)
+        if inside:
+            gap = 0
+        elif limit is None or points >= limit:
+            # Listede değiliz ama profil puanı sınırın üstünde: dönem puanımız
+            # daha düşük, değerini API vermiyor [ölçüldü 06.10.2026, haftalık].
+            gap = None
+        else:
+            gap = limit - points
         out["donemler"][label] = {"ilk10_siniri": limit, "ilk10_icinde": inside, "fark": gap}
-    out["not"] = ("Sıralama puanı profil puanından farklı hesaplanabiliyor "
-                  "[ölçüldü 05.10.2026]; fark yaklaşıktır.")
+    out["not"] = ("Sıralama dönem puanını kullanıyor; dönem puanın API'de yok, fark profil "
+                  "puanından hesaplanır ve en az bu kadardır. fark=null: listede değilsin, "
+                  "kalan fark bilinmiyor [ölçüldü 06.10.2026].")
     return out

@@ -52,3 +52,16 @@ def test_standing_gap(fake, platform):
     s = get_standing(platform)
     assert s["puan"] == 1263
     assert s["donemler"]["aylik"] == {"ilk10_siniri": 1540, "ilk10_icinde": False, "fark": 277}
+
+
+def test_standing_not_inside_but_points_above_limit_is_unknown(fake, platform):
+    """Canlıda görüldü (06.10): haftalık sınır 1.096, profil puanı 1.263, listede yokuz.
+
+    Sıralama dönem puanını kullanıyor; dönem puanımızı API vermiyor. "fark 0"
+    listeye girmişiz gibi okunur — fark bilinmiyor olarak dönmeli.
+    """
+    fake.on("GET", "/auth/me", (200, envelope({"tier_points": 1263, "username": "biz"})))
+    users = [{"username": f"u{i}", "score": 3000 - i * 100} for i in range(9)] + [{"username": "u9", "score": 1096}]
+    fake.on("GET", "/universe/leaderboard", (200, envelope({"top_users": users})))
+    d = get_standing(platform)["donemler"]["haftalik"]
+    assert d["ilk10_icinde"] is False and d["fark"] is None
