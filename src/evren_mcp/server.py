@@ -8,7 +8,7 @@ from importlib.metadata import PackageNotFoundError, version
 from mcp.server.mcpserver import Context, MCPServer
 from mcp.types import ToolAnnotations
 
-from . import account, datasets, training
+from . import account, datasets, evaluation, training
 from .config import Settings, load_settings
 from .errors import EvrenError
 from .journal import Journal
@@ -98,6 +98,15 @@ def build_server(settings: Settings, platform: Platform | None = None,
               description="Süren eğitimi durdurur (geri alınamaz; kullanılmayan kredi iade edilir).")
     def stop_training(job_id: str) -> dict:
         return training.stop(p, job_id)
+
+    @srv.tool(name="evaluate_model", annotations=SPEND,
+              description="KÜÇÜK KREDİ HARCAR (~0,04 CR). Modelin bir veri bölmesindeki notunu ölçer. "
+                          "split: train|validation|test (test tek seferlik).")
+    def evaluate_model(model_version_id: str, dataset_id: str, dataset_version_id: str,
+                       split: str = "validation", image_size: int = 640) -> dict:
+        return evaluation.evaluate(p, qb, settings, model_version_id=model_version_id,
+                                   dataset_id=dataset_id, dataset_version_id=dataset_version_id,
+                                   split=split, image_size=image_size)
 
     return srv
 
