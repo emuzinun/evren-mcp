@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from importlib.metadata import PackageNotFoundError, version
 
@@ -121,6 +122,35 @@ def build_server(settings: Settings, platform: Platform | None = None,
     def upload_dataset(zip_path: str, name: str, description: str = "", dry_run: bool = True) -> dict:
         return upload_mod.upload(p, settings, zip_path=zip_path, name=name,
                                  description=description, dry_run=dry_run)
+
+    @srv.prompt(name="egit", description="Rehberli eğitim: set seç, maliyet gör, onayla, başlat, izle.")
+    def egit_prompt(istek: str = "") -> str:
+        return (
+            f"EVREN'de bir model eğitmek istiyorum. İsteğim: {istek or '(belirtilmedi)'}\n"
+            "1. list_datasets ile setlerimi göster; uygun set ve SÜRÜM kimliğini benimle seç.\n"
+            "2. estimate_training ile maliyeti al; tahmini ve en kötü tutarı, süreyi, bugünkü "
+            "harcamayı bana göster.\n"
+            "3. Açık onayımı bekle. Onay vermezsem başlatma.\n"
+            "4. Onaylarsam start_training(teklif) çağır.\n"
+            "5. get_training ile birkaç dakikada bir durumu kontrol et; uzun döngü kurma, "
+            "bana ara durum bildir. Bitince metrikleri ve puan farkını özetle; hata varsa "
+            "açıklamasını aktar."
+        )
+
+    @srv.prompt(name="durum", description="Bakiye, puan ve süren eğitimler tek özet.")
+    def durum_prompt() -> str:
+        return ("get_credits, get_standing ve list_trainings araçlarını çağır; bakiyemi, "
+                "puanımı, aylık ilk 10'a kalan farkı ve süren eğitimleri kısa bir özet olarak ver.")
+
+    @srv.resource("evren://kurallar", name="kurallar", mime_type="application/json",
+                  description="Platformun güncel kredi kazanç kuralları (/billing/earning/overview).")
+    def kurallar_resource() -> str:
+        return json.dumps(p.get("/billing/earning/overview"), ensure_ascii=False)
+
+    @srv.resource("evren://gunluk", name="gunluk", mime_type="application/json",
+                  description="Yerel eğitim günlüğünün son 50 kaydı.")
+    def gunluk_resource() -> str:
+        return json.dumps(jr.read(50), ensure_ascii=False)
 
     return srv
 

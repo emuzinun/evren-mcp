@@ -84,3 +84,22 @@ def test_start_training_without_quote_is_refused(fake, platform, fast_settings):
     r = run(go)
     assert r.is_error and "Teklif bulunamadı" in r.content[0].text
     assert fake.calls("POST", "/training/jobs") == []
+
+
+def test_prompts_and_resources(fake, platform, fast_settings):
+    fake.on("GET", "/billing/earning/overview", (200, envelope({"rules": [{"slug": "daily-login", "cr_reward": 10}]})))
+    srv = build_server(fast_settings, platform=platform)
+
+    async def go():
+        async with Client(srv) as c:
+            prompts = {p.name for p in (await c.list_prompts()).prompts}
+            egit = (await c.get_prompt("egit", {"istek": "drone seti"})).messages[0].content.text
+            kurallar = (await c.read_resource("evren://kurallar")).contents[0].text
+            gunluk = (await c.read_resource("evren://gunluk")).contents[0].text
+            return prompts, egit, kurallar, gunluk
+
+    prompts, egit, kurallar, gunluk = run(go)
+    assert {"egit", "durum"} <= prompts
+    assert "estimate_training" in egit and "drone seti" in egit and "onay" in egit
+    assert "daily-login" in kurallar
+    assert gunluk == "[]"
