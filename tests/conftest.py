@@ -10,3 +10,23 @@ def settings(tmp_path):
         "EVREN_JOURNAL_PATH": str(tmp_path / "journal.jsonl"),
         "EVREN_DOWNLOAD_DIR": str(tmp_path / "modeller"),
     })
+
+
+import dataclasses
+
+from tests.fakes import FakeEvren
+
+
+@pytest.fixture
+def fast_settings(settings):
+    return dataclasses.replace(settings, rpm=6000)
+
+
+@pytest.fixture
+def fake():
+    return FakeEvren()
+
+
+@pytest.fixture
+def platform(fake, fast_settings):
+    return fake.platform(fast_settings)
