@@ -9,6 +9,7 @@ from mcp.server.mcpserver import Context, MCPServer
 from mcp.types import ToolAnnotations
 
 from . import account, datasets, evaluation, models, training
+from . import upload as upload_mod
 from .config import Settings, load_settings
 from .errors import EvrenError
 from .journal import Journal
@@ -113,6 +114,13 @@ def build_server(settings: Settings, platform: Platform | None = None,
               description="Eğitilmiş modelin ağırlık dosyasını (best.pt) indirme klasörüne indirir.")
     def download_model_tool(model_version_id: str) -> dict:
         return models.download_model(p, settings, model_version_id)
+
+    @srv.tool(name="upload_dataset", annotations=SPEND,
+              description="Zip'i yeni bir GİZLİ veri setine yükler. Önce dry_run=true (varsayılan) ile "
+                          "kontrol raporu al, kullanıcı onaylarsa dry_run=false.")
+    def upload_dataset(zip_path: str, name: str, description: str = "", dry_run: bool = True) -> dict:
+        return upload_mod.upload(p, settings, zip_path=zip_path, name=name,
+                                 description=description, dry_run=dry_run)
 
     return srv
 
