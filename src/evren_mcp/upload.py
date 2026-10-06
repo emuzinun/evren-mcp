@@ -83,7 +83,12 @@ def upload(p: Platform, settings: Settings, *, zip_path: str, name: str,
     ds = p.post("/datasets", json={"name": name, "modality": "VISION", "description": description or None,
                                    "visibility": "private", "contributions_enabled": False})
     sid = validate_id((ds or {}).get("id", ""), "veri seti kimliği")
-    events = p.post_ndjson(f"/datasets/{sid}/import", file_path=path, timeout=1800.0)
+    try:
+        events = p.post_ndjson(f"/datasets/{sid}/import", file_path=path, timeout=1800.0)
+    except EvrenError as e:
+        raise EvrenError(f"Set oluşturuldu ({sid}) ama içe aktarma sırasında hata: {e} "
+                         "Tekrar yüklemeden önce seti panelde kontrol et; yeniden denemek "
+                         "yeni bir set açar.") from None
     done = next((e for e in reversed(events) if e.get("t") == "d"), None)
     if done is None:
         errors = [e.get("error") for e in events if e.get("t") == "e"][:1]

@@ -60,11 +60,11 @@ def estimate(p: Platform, quotes: QuoteBook, settings: Settings, **build_kw) -> 
         hatalar = "; ".join(str(e) for e in (d.get("errors") or [])) or "neden belirtilmedi"
         raise EvrenError(f"Platform bu ayarları geçersiz buldu: {hatalar}")
     est = float(d["estimated_cr"])
-    worst = d.get("p95_worst_cr")
+    worst = float(d["p95_worst_cr"]) if d.get("p95_worst_cr") is not None else None
     spent = today_spend(p)
     budget.check(est, max_job=settings.max_job_cr, max_daily=settings.max_daily_cr,
-                 spent_today=spent, pending=quotes.pending_total())
-    q = quotes.add(project, body, est, float(worst) if worst is not None else None)
+                 spent_today=spent, pending=quotes.pending_total(), worst=worst)
+    q = quotes.add(project, body, est, worst)
     return {
         "teklif": q.id, "gecerlilik_dk": int(quotes.ttl_s // 60),
         "tahmini_cr": est, "en_kotu_cr": q.worst_cr, "sure_saat": d.get("wall_hours"),
@@ -84,23 +84,48 @@ def _find_created(p: Platform, body: dict, since: datetime) -> dict | None:
     return None
 
 
+def _resolve_ambiguous(p: Platform, journal: Journal, q, sent_at: datetime) -> dict:
+    """POST'a net yanıt gelmedi: istek tekrar gönderilmez, iş listesine bakılır.
+
+    Liste de okunamazsa durum belirsizdir; kullanıcıya "tekrar dene" denmez —
+    iş oluşmuş olabilir, ikinci başlatma çift ücret demek.
+    """
+    try:
+        job = _find_created(p, q.body, sent_at)
+    except EvrenError:
+        journal.append("egitim_belirsiz", teklif=q.id, govde=q.body, tahmini_cr=q.estimated_cr)
+        raise EvrenError(
+            "Durum belirsiz: platform eğitim isteğine net yanıt vermedi ve iş listesi de "
+            "okunamadı. İş oluşmuş olabilir; istek tekrar gönderilmedi. Yeni eğitim "
+            "başlatmadan önce birkaç dakika sonra list_trainings ile kontrol et.") from None
+    if job is None:
+        raise EvrenError(
+            "Platform eğitim isteğine net yanıt vermedi ve listede yeni iş görünmüyor. "
+            "İstek tekrar gönderilmedi (çift ücret riski). Birkaç dakika sonra "
+            "list_trainings ile bak; iş yoksa yeni teklifle tekrar dene.")
+    return job
+
+
 def start(p: Platform, quotes: QuoteBook, settings: Settings, journal: Journal, quote_id: str) -> dict:
     q = quotes.take(quote_id)
-    budget.check(q.estimated_cr, max_job=settings.max_job_cr, max_daily=settings.max_daily_cr,
-                 spent_today=today_spend(p), pending=quotes.pending_total())
-    before = get_points(p)
+    # Kontrol ve ayırma tek adım: eşzamanlı ikinci başlatma bu ayırmayı görür.
+    with quotes.spend_lock:
+        budget.check(q.estimated_cr, max_job=settings.max_job_cr, max_daily=settings.max_daily_cr,
+                     spent_today=today_spend(p), pending=quotes.pending_total(), worst=q.worst_cr)
+        token = quotes.record_spend(q.estimated_cr)
+    try:
+        before = get_points(p)
+    except EvrenError:
+        quotes.cancel_spend(token)
+        raise
     sent_at = datetime.now(timezone.utc)
     try:
         job = p.post("/training/jobs", params={"project_id": q.project_id}, json=q.body)
     except PlatformError as e:
         if e.code != "ambiguous":
+            quotes.cancel_spend(token)  # kesin ret: kredi ayrılmadı
             raise
-        job = _find_created(p, q.body, sent_at)
-        if job is None:
-            raise EvrenError(
-                "Platform eğitim isteğine net yanıt vermedi ve listede yeni iş görünmüyor. "
-                "İstek tekrar gönderilmedi (çift ücret riski). Birkaç dakika sonra "
-                "list_trainings ile bak; iş yoksa yeni teklifle tekrar dene.") from None
+        job = _resolve_ambiguous(p, journal, q, sent_at)
     if not isinstance(job, dict) or not job.get("id"):
         raise EvrenError("Platform eğitim kaydını döndürmedi; list_trainings ile kontrol et.")
     journal.append("egitim_basladi", is_id=job["id"], teklif=q.id, govde=q.body,

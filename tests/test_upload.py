@@ -89,3 +89,16 @@ def test_upload_import_without_done_event_is_explained(fake, platform, fast_sett
     with pytest.raises(EvrenError, match=DS):
         upload(platform, fast_settings, zip_path=str(make_zip(tmp_path / "a.zip", GOOD)),
                name="deneme", dry_run=False)
+
+
+
+def test_upload_import_transport_error_mentions_set_id(fake, platform, fast_settings, tmp_path):
+    """İnceleme (önemli 7): set oluştuktan sonra bağlantı koparsa set kimliği kaybolmamalı."""
+    def kopuk(request):
+        raise httpx.ConnectError("koptu", request=request)
+
+    fake.on("POST", "/datasets", (201, envelope({"id": DS})))
+    fake.on("POST", f"/datasets/{DS}/import", kopuk)
+    with pytest.raises(EvrenError, match=DS):
+        upload(platform, fast_settings, zip_path=str(make_zip(tmp_path / "a.zip", GOOD)),
+               name="deneme", dry_run=False)

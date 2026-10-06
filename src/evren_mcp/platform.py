@@ -68,6 +68,7 @@ class Platform:
         self._sleep = sleep
         self._limiter = RateLimiter(settings.rpm)
         self._host = urlparse(settings.base_url).netloc
+        self.ledger_cache: dict = {}  # account.today_spend: gün içinde okunan defter satırları
 
     # --- yardımcılar -------------------------------------------------------
 
@@ -188,20 +189,24 @@ class Platform:
         url = self._url(path)
         self._limiter.acquire()
         events: list[dict] = []
-        with file_path.open("rb") as f:
-            with self.http.stream("POST", url, headers=self._headers(url), timeout=timeout,
-                                  files={"file": (file_path.name, f, "application/zip")}) as r:
-                if r.status_code != 200:
-                    r.read()
-                    raise self._error(r)
-                for line in r.iter_lines():
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        events.append(jsonlib.loads(line))
-                    except ValueError:
-                        continue
+        try:
+            with file_path.open("rb") as f:
+                with self.http.stream("POST", url, headers=self._headers(url), timeout=timeout,
+                                      files={"file": (file_path.name, f, "application/zip")}) as r:
+                    if r.status_code != 200:
+                        r.read()
+                        raise self._error(r)
+                    for line in r.iter_lines():
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            events.append(jsonlib.loads(line))
+                        except ValueError:
+                            continue
+        except httpx.TransportError:
+            raise PlatformError("Yükleme sırasında bağlantı koptu; içe aktarmanın platformda "
+                                "tamamlanıp tamamlanmadığı belirsiz.", code="ambiguous") from None
         return events
 
     def download(self, url: str, dest: Path) -> int:
@@ -221,6 +226,9 @@ class Platform:
                         out.write(chunk)
                         size += len(chunk)
             part.replace(dest)
+        except httpx.TransportError:
+            raise PlatformError("İndirme sırasında bağlantı koptu; dosya yazılmadı. "
+                                "Biraz sonra tekrar dene.", code="unavailable") from None
         finally:
             if part.exists():
                 part.unlink()

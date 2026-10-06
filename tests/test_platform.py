@@ -121,3 +121,15 @@ def test_validate_id_accepts_uuid():
 
 def test_parse_ts_accepts_z_and_offset():
     assert parse_ts("2026-10-05T19:53:05Z") == parse_ts("2026-10-05T19:53:05.000+00:00")
+
+
+
+def test_download_transport_error_is_turkish_and_leaves_no_file(fake, platform, tmp_path):
+    """İnceleme (önemli 7): akış sırasında bağlantı koparsa anlaşılır hata, yarım dosya yok."""
+    def kopuk(request):
+        raise httpx.ReadTimeout("zaman aşımı", request=request)
+
+    fake.on("GET", "/files/z.pt", kopuk)
+    with pytest.raises(PlatformError, match="bağlantı"):
+        platform.download("/api/v1/files/z.pt", tmp_path / "z.pt")
+    assert not list(tmp_path.iterdir())

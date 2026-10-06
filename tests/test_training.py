@@ -166,3 +166,86 @@ def test_list_jobs(fake, platform):
     fake.on("GET", "/training/jobs", (200, {"items": [{"id": JOB, "status": "FAILED", "architecture": "yolov8n",
                                                        "created_at": "2026-10-05T18:48:42Z"}]}))
     assert list_jobs(platform)[0]["durum_tr"] == "başarısız"
+
+
+
+def test_start_ambiguous_and_list_unreadable_is_unclear_not_retry(fake, platform, fast_settings):
+    """İnceleme (önemli 3): iş listesi de okunamazsa 'tekrar dene' denmemeli; iş oluşmuş olabilir."""
+    fake.on("GET", "/billing/ledger", (200, {"items": []}))
+    fake.on("GET", "/auth/me", me(1263))
+    fake.on("POST", "/training/jobs", (502, "x"))
+    fake.on("GET", "/training/jobs", (500, {"success": False}))
+    qb, j = QuoteBook(), Journal(fast_settings.journal_path)
+    with pytest.raises(EvrenError, match="belirsiz"):
+        start(platform, qb, fast_settings, j, quote_for(qb).id)
+    assert len(fake.calls("POST", "/training/jobs")) == 1
+    assert j.read()[-1]["olay"] == "egitim_belirsiz"
+
+
+def test_recent_start_counts_until_ledger_catches_up(fake, platform, fast_settings):
+    """İnceleme (önemli 4): defter HOLD'u gecikmeli gösterirse ikinci başlatma tavanı delmemeli."""
+    import dataclasses
+    s = dataclasses.replace(fast_settings, max_daily_cr=1.0)
+    fake.on("GET", "/billing/ledger", (200, {"items": []}))
+    fake.on("GET", "/auth/me", me(1263))
+    fake.on("POST", "/training/jobs", (201, envelope({"id": JOB, "status": "EXPORTING"})))
+    qb, j = QuoteBook(), Journal(s.journal_path)
+    start(platform, qb, s, j, quote_for(qb, 0.6).id)
+    with pytest.raises(EvrenError, match="Günlük tavan"):
+        start(platform, qb, s, j, quote_for(qb, 0.6).id)
+    assert len(fake.calls("POST", "/training/jobs")) == 1
+
+
+def test_parallel_starts_cannot_both_pass(fake, platform, fast_settings, monkeypatch):
+    """İnceleme (önemli 4): eşzamanlı iki başlatma aynı defter rakamıyla birlikte geçmemeli.
+
+    Bariyer iki iş parçacığını defter okumasında buluşturmaya çalışır: kilit
+    yoksa ikisi de teklifini almış, ikisi de 0 harcama görür ve ikisi de geçer.
+    Kilit varsa ikincisi bariyere hiç ulaşamaz; bariyer zaman aşımıyla çözülür.
+    """
+    import dataclasses
+    import threading
+
+    from evren_mcp import training as training_mod
+    s = dataclasses.replace(fast_settings, max_daily_cr=1.0)
+    fake.on("GET", "/auth/me", me(1263))
+    fake.on("POST", "/training/jobs", (201, envelope({"id": JOB, "status": "EXPORTING"})))
+    bariyer = threading.Barrier(2)
+
+    def bekleyen_harcama(p, *a, **k):
+        try:
+            bariyer.wait(timeout=0.5)
+        except threading.BrokenBarrierError:
+            pass
+        return 0.0
+
+    monkeypatch.setattr(training_mod, "today_spend", bekleyen_harcama)
+    qb, j = QuoteBook(), Journal(s.journal_path)
+    q1, q2 = quote_for(qb, 0.6), quote_for(qb, 0.6)
+    sonuc = []
+
+    def kos(q):
+        try:
+            start(platform, qb, s, j, q.id)
+            sonuc.append("ok")
+        except EvrenError:
+            sonuc.append("red")
+
+    ts = [threading.Thread(target=kos, args=(q,)) for q in (q1, q2)]
+    for t_ in ts:
+        t_.start()
+    for t_ in ts:
+        t_.join()
+    assert sorted(sonuc) == ["ok", "red"]
+    assert len(fake.calls("POST", "/training/jobs")) == 1
+
+
+def test_job_cap_uses_worst_case(fake, platform, fast_settings):
+    """İnceleme (önemli 6): tahmin 4,0 ama en kötü 12 CR; tek iş tavanını en kötü durum aşıyor."""
+    ledger_empty(fake)
+    fake.on("POST", "/training/jobs/dry-run",
+            (200, envelope({"valid": True, "estimated_cr": 4.0, "p95_worst_cr": 12.0})))
+    qb = QuoteBook()
+    with pytest.raises(EvrenError, match="en kötü"):
+        estimate(platform, qb, fast_settings, **kw())
+    assert qb.pending_total() == 0
