@@ -3,14 +3,19 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime, timedelta, timezone
 
 from . import budget
-from .account import today_spend
+from .account import get_points, today_spend
 from .config import Settings
 from .datasets import default_project_id
-from .errors import EvrenError
-from .platform import Platform, validate_id
+from .errors import EvrenError, PlatformError
+from .explain import STATUS_TR, explain_job
+from .journal import Journal
+from .platform import Platform, as_list, parse_ts, validate_id
 from .quotes import QuoteBook
+
+TERMINAL = {"COMPLETED", "FAILED", "CANCELLED", "ERROR"}
 
 _ARCH = re.compile(r"^[a-z0-9][a-z0-9._-]{1,40}$")
 
@@ -67,3 +72,83 @@ def estimate(p: Platform, quotes: QuoteBook, settings: Settings, **build_kw) -> 
         "gunluk": {"bugun_harcanan_cr": round(spent, 4), "tavan_cr": settings.max_daily_cr},
         "not": "Başlatmak için kullanıcıya tutarı göster, onay al, sonra start_training(teklif).",
     }
+
+
+def _find_created(p: Platform, body: dict, since: datetime) -> dict | None:
+    for j in as_list(p.get("/training/jobs", params={"limit": 10})):
+        created = j.get("created_at")
+        if (created and parse_ts(created) >= since - timedelta(seconds=60)
+                and j.get("dataset_version_id") == body["dataset_version_id"]
+                and j.get("architecture") == body["architecture"]):
+            return j
+    return None
+
+
+def start(p: Platform, quotes: QuoteBook, settings: Settings, journal: Journal, quote_id: str) -> dict:
+    q = quotes.take(quote_id)
+    budget.check(q.estimated_cr, max_job=settings.max_job_cr, max_daily=settings.max_daily_cr,
+                 spent_today=today_spend(p), pending=quotes.pending_total())
+    before = get_points(p)
+    sent_at = datetime.now(timezone.utc)
+    try:
+        job = p.post("/training/jobs", params={"project_id": q.project_id}, json=q.body)
+    except PlatformError as e:
+        if e.code != "ambiguous":
+            raise
+        job = _find_created(p, q.body, sent_at)
+        if job is None:
+            raise EvrenError(
+                "Platform eğitim isteğine net yanıt vermedi ve listede yeni iş görünmüyor. "
+                "İstek tekrar gönderilmedi (çift ücret riski). Birkaç dakika sonra "
+                "list_trainings ile bak; iş yoksa yeni teklifle tekrar dene.") from None
+    if not isinstance(job, dict) or not job.get("id"):
+        raise EvrenError("Platform eğitim kaydını döndürmedi; list_trainings ile kontrol et.")
+    journal.append("egitim_basladi", is_id=job["id"], teklif=q.id, govde=q.body,
+                   tahmini_cr=q.estimated_cr, puan_once=before)
+    return {"is_id": job["id"], "durum": job.get("status"),
+            "durum_tr": STATUS_TR.get(str(job.get("status")), job.get("status")),
+            "tahmini_cr": q.estimated_cr,
+            "not": "İlerlemeyi get_training ile izle; küçük bir iş birkaç dakika sürer."}
+
+
+def _summary(j: dict) -> dict:
+    return {"is_id": j.get("id"), "durum": j.get("status"),
+            "durum_tr": STATUS_TR.get(str(j.get("status")), j.get("status")),
+            "mimari": j.get("architecture"), "olusturma": j.get("created_at")}
+
+
+def status(p: Platform, journal: Journal, job_id: str) -> dict:
+    jid = validate_id(job_id, "iş kimliği")
+    j = p.get(f"/training/jobs/{jid}")
+    out = _summary(j) | {
+        "baslama": j.get("started_at"), "bitis": j.get("completed_at"),
+        "tahmini_cr": j.get("estimated_cr"), "gercek_cr": j.get("actual_cr"),
+        "gpu_saat": j.get("actual_gpu_hours"), "kuyruk_sirasi": j.get("queue_position"),
+        "metrikler": j.get("final_metrics"), "model_surum_id": j.get("model_version_id")}
+    explanation = explain_job(j)
+    if explanation:
+        out["aciklama"] = explanation
+    started = journal.find("egitim_basladi", jid)
+    if j.get("status") in TERMINAL and started and not journal.find("egitim_bitti", jid):
+        after = get_points(p)
+        before = started.get("puan_once")
+        diff = after - before if isinstance(after, int) and isinstance(before, int) else None
+        journal.append("egitim_bitti", is_id=jid, durum=j.get("status"), gercek_cr=j.get("actual_cr"),
+                       metrikler=j.get("final_metrics"), puan_sonra=after, puan_farki=diff)
+        out["puan_farki"] = diff
+    return out
+
+
+def list_jobs(p: Platform, limit: int = 10) -> list[dict]:
+    return [_summary(j) for j in as_list(p.get("/training/jobs", params={"limit": limit}))[:limit]]
+
+
+def stop(p: Platform, job_id: str) -> dict:
+    jid = validate_id(job_id, "iş kimliği")
+    j = p.get(f"/training/jobs/{jid}")
+    if j.get("status") in TERMINAL:
+        durum = STATUS_TR.get(str(j.get("status")), j.get("status"))
+        raise EvrenError(f"İş zaten bitmiş ({durum}); durdurulacak bir şey yok.")
+    p.post(f"/training/jobs/{jid}/stop")
+    return {"is_id": jid, "istek": "durdurma gönderildi",
+            "not": "Kullanılmayan kredi iade edilir; get_training ile durumu kontrol et."}

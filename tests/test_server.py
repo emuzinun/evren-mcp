@@ -58,3 +58,29 @@ def test_diagnostics_masks_key(fake, platform, fast_settings):
 
     text = run(go).content[0].text
     assert fast_settings.api_key not in text and "1234" in text  # "…" JSON'da kaçışlanabilir
+
+
+def test_training_tools_registered_and_spending_ones_not_read_only(fake, platform, fast_settings):
+    srv = build_server(fast_settings, platform=platform)
+
+    async def go():
+        async with Client(srv) as c:
+            return {t.name: t for t in (await c.list_tools()).tools}
+
+    tools = run(go)
+    for n in ("estimate_training", "get_training", "list_trainings"):
+        assert tools[n].annotations.read_only_hint
+    for n in ("start_training", "stop_training"):
+        assert tools[n].annotations.read_only_hint is False
+
+
+def test_start_training_without_quote_is_refused(fake, platform, fast_settings):
+    srv = build_server(fast_settings, platform=platform)
+
+    async def go():
+        async with Client(srv) as c:
+            return await c.call_tool("start_training", {"quote_id": "T-YOK"})
+
+    r = run(go)
+    assert r.is_error and "Teklif bulunamadı" in r.content[0].text
+    assert fake.calls("POST", "/training/jobs") == []

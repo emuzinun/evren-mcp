@@ -64,3 +64,105 @@ def test_estimate_over_job_cap_gives_no_quote(fake, platform, fast_settings):
     with pytest.raises(EvrenError, match="tek iş tavanı"):
         estimate(platform, qb, fast_settings, **kw())
     assert qb.pending_total() == 0
+
+
+import httpx
+
+from evren_mcp.journal import Journal
+from evren_mcp.training import list_jobs, start, status, stop
+
+JOB = "00000000-0000-4000-8000-000000000001"
+
+
+def quote_for(qb, est=0.54):
+    return qb.add(PROJ, build_body(**kw()), est)
+
+
+def me(points):
+    return (200, envelope({"tier_points": points, "username": "biz"}))
+
+
+def test_start_happy_path_journals(fake, platform, fast_settings):
+    fake.on("GET", "/billing/ledger", (200, {"items": []}))
+    fake.on("GET", "/auth/me", me(1263))
+    fake.on("POST", "/training/jobs", (201, envelope({"id": JOB, "status": "EXPORTING"})))
+    qb, j = QuoteBook(), Journal(fast_settings.journal_path)
+    out = start(platform, qb, fast_settings, j, quote_for(qb).id)
+    assert out["is_id"] == JOB
+    rec = j.find("egitim_basladi", JOB)
+    assert rec["puan_once"] == 1263 and rec["tahmini_cr"] == 0.54
+    assert fake.calls("POST", "/training/jobs")[0].url.params["project_id"] == PROJ
+
+
+def test_start_rechecks_budget_at_start(fake, platform, fast_settings):
+    fake.on("GET", "/billing/ledger", (200, {"items": [
+        {"created_at": datetime.now(timezone.utc).isoformat(), "tx_type": "HOLD", "amount": "-19.9"}]}),
+        (200, {"items": []}))
+    qb = QuoteBook()
+    with pytest.raises(EvrenError, match="Günlük tavan"):
+        start(platform, qb, fast_settings, Journal(fast_settings.journal_path), quote_for(qb).id)
+    assert fake.calls("POST", "/training/jobs") == []
+
+
+def test_start_ambiguous_finds_created_job_without_resending(fake, platform, fast_settings):
+    fake.on("GET", "/billing/ledger", (200, {"items": []}))
+    fake.on("GET", "/auth/me", me(1263))
+    fake.on("POST", "/training/jobs", (500, {"success": False}))
+    fake.on("GET", "/training/jobs", (200, {"items": [{
+        "id": JOB, "status": "EXPORTING", "architecture": "yolov8n", "dataset_version_id": VER,
+        "created_at": datetime.now(timezone.utc).isoformat()}]}))
+    qb = QuoteBook()
+    out = start(platform, qb, fast_settings, Journal(fast_settings.journal_path), quote_for(qb).id)
+    assert out["is_id"] == JOB
+    assert len(fake.calls("POST", "/training/jobs")) == 1
+
+
+def test_start_ambiguous_non_json_checks_list(fake, platform, fast_settings):
+    fake.on("GET", "/billing/ledger", (200, {"items": []}))
+    fake.on("GET", "/auth/me", me(1263))
+    fake.on("POST", "/training/jobs", lambda r: httpx.Response(502, text="<html>Bad Gateway</html>"))
+    fake.on("GET", "/training/jobs", (200, {"items": []}))
+    qb = QuoteBook()
+    with pytest.raises(EvrenError, match="tekrar gönderilmedi"):
+        start(platform, qb, fast_settings, Journal(fast_settings.journal_path), quote_for(qb).id)
+    assert len(fake.calls("POST", "/training/jobs")) == 1
+
+
+def test_status_explains_and_journals_finish_once(fake, platform, fast_settings):
+    j = Journal(fast_settings.journal_path)
+    j.append("egitim_basladi", is_id=JOB, puan_once=1263)
+    fake.on("GET", f"/training/jobs/{JOB}", (200, envelope({
+        "id": JOB, "status": "COMPLETED", "actual_cr": "0.50", "final_metrics": {"mAP50": 0.41},
+        "model_version_id": "00000000-0000-4000-8000-000000000004"})))
+    fake.on("GET", "/auth/me", me(1293))
+    out = status(platform, j, JOB)
+    assert out["durum_tr"] == "tamamlandı" and out["puan_farki"] == 30
+    status(platform, j, JOB)
+    assert len([r for r in j.read() if r["olay"] == "egitim_bitti"]) == 1
+
+
+def test_status_disk_failure_explained(fake, platform, fast_settings):
+    fake.on("GET", f"/training/jobs/{JOB}", (200, envelope({
+        "id": JOB, "status": "FAILED", "error_category": "INFRA",
+        "error_message": "[Errno 28] No space left on device"})))
+    out = status(platform, Journal(fast_settings.journal_path), JOB)
+    assert "disk" in out["aciklama"].lower()
+
+
+def test_stop_refuses_finished_job(fake, platform):
+    fake.on("GET", f"/training/jobs/{JOB}", (200, envelope({"id": JOB, "status": "COMPLETED"})))
+    with pytest.raises(EvrenError, match="zaten"):
+        stop(platform, JOB)
+    assert fake.calls("POST", f"/training/jobs/{JOB}/stop") == []
+
+
+def test_stop_running_job(fake, platform):
+    fake.on("GET", f"/training/jobs/{JOB}", (200, envelope({"id": JOB, "status": "TRAINING"})))
+    fake.on("POST", f"/training/jobs/{JOB}/stop", (200, envelope({"status": "CANCELLED"})))
+    assert stop(platform, JOB)["is_id"] == JOB
+
+
+def test_list_jobs(fake, platform):
+    fake.on("GET", "/training/jobs", (200, {"items": [{"id": JOB, "status": "FAILED", "architecture": "yolov8n",
+                                                       "created_at": "2026-10-05T18:48:42Z"}]}))
+    assert list_jobs(platform)[0]["durum_tr"] == "başarısız"
