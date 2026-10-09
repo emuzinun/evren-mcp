@@ -48,6 +48,26 @@ jobs:
       - run: uv sync --locked
       - run: uv run pytest -q --cov --cov-report=term
 
+  secrets:
+    name: Sır taraması (gitleaks)
+    runs-on: ubuntu-latest
+    env:
+      GITLEAKS_VERSION: 8.30.1
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # bütün geçmiş: açık repoda eski commit'ler de görünür
+          persist-credentials: false
+      - name: gitleaks kur (sabit sürüm, sağlama toplamı doğrulanır)
+        run: |
+          base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+          tgz="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfLO "$base/$tgz"
+          curl -sSfLO "$base/gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+          grep " $tgz\$" "gitleaks_${GITLEAKS_VERSION}_checksums.txt" | sha256sum -c -
+          tar -xzf "$tgz" gitleaks
+      - run: ./gitleaks git --redact --no-banner -v
+
   build:
     name: Paket
     runs-on: ubuntu-latest
@@ -63,3 +83,18 @@ jobs:
         run: |
           tar -tzf dist/*.tar.gz | tee sdist.txt
           ! grep -E '(^|/)\.env$|CLAUDE\.md|STATUS\.md|/docs/' sdist.txt
+
+  # Branch kuralında "zorunlu kontrol" olarak tek bu iş seçilir; matris büyüse de
+  # kural değişmez. Bir iş atlanır ya da iptal edilirse de kırmızı olur.
+  sonuc:
+    name: CI sonucu
+    if: always()
+    needs: [lint, test, secrets, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Bütün işler geçti mi
+        env:
+          SONUCLAR: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "$SONUCLAR"
+          for s in $SONUCLAR; do [ "$s" = success ] || exit 1; done

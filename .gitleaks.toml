@@ -1,0 +1,9 @@
+# gitleaks: varsayılan kurallar + testlerdeki uydurma anahtarlar için dar izin.
+# Yerelde global pre-commit, uzakta CI bu dosyayı okur.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Testlerdeki uydurma anahtarlar (test-anahtar-..., abcd1234efgh). Yalnız genel kural; bilinen biçimli anahtar (GitHub, AWS...) testte de yakalanır."
+targetRules = ["generic-api-key"]
+paths = ['''(^|/)tests/''']

@@ -21,6 +21,10 @@ uv run mypy                   # tip denetimi
 
 İsteğe bağlı: `uvx pre-commit install` ile ruff her commit'te çalışır.
 
+CI her push'ta bütün geçmişi gitleaks ile sır taramasından geçirir. Testteki
+uydurma anahtarlar `tests/` altında kalır; `.gitleaks.toml` izin listesi yalnız
+orayı ve yalnız genel kuralı kapsar.
+
 Testler gerçek platforma hiç gitmez: `tests/fakes.py` içindeki `FakeEvren`,
 `httpx.MockTransport` üstünde yol → yanıt sırası tutar. Yeni bir platform
 çağrısı eklerken önce sahte yanıtla test yaz.

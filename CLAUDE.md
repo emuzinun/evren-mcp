@@ -26,5 +26,6 @@ harcar. Yazarın gizli ölçüm deposunun kuralları burada da geçerli;
 - Silme, herkese açık yapma, etiketleme, şart onayı, anahtar yönetimi eklenmez.
 - Platform davranışı ölçülmeden koda girmez; kaynak etiketi `[ölçüldü tarih]`.
 - Belgelere hesaba özgü değer (bakiye, puan, gerçek kimlik, yerel yol) yazılmaz;
-  testlerde uydurma UUID kullanılır.
+  testlerde uydurma UUID kullanılır. Uydurma anahtar yalnız `tests/` altında
+  (`.gitleaks.toml` izni yalnız orayı kapsar).
 - Commit/push ve GitHub'da açma kararı kullanıcının.
