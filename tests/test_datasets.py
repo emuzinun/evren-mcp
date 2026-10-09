@@ -9,18 +9,64 @@ VER = "00000000-0000-4000-8000-000000000002"
 
 
 def test_list_datasets_with_versions(fake, platform):
-    fake.on("GET", "/datasets", (200, {"items": [{"id": DS, "name": "visdrone-250", "visibility": "private",
-                                                  "item_count": 249, "annotation_count": 15141}]}))
-    fake.on("GET", f"/datasets/{DS}/versions", (200, envelope([{"id": VER, "version_tag": "v1", "is_frozen": True,
-                                                                 "item_count": 249, "split_config": {"train": 172}}])))
+    fake.on(
+        "GET",
+        "/datasets",
+        (
+            200,
+            {
+                "items": [
+                    {
+                        "id": DS,
+                        "name": "visdrone-250",
+                        "visibility": "private",
+                        "item_count": 249,
+                        "annotation_count": 15141,
+                    }
+                ]
+            },
+        ),
+    )
+    fake.on(
+        "GET",
+        f"/datasets/{DS}/versions",
+        (
+            200,
+            envelope(
+                [
+                    {
+                        "id": VER,
+                        "version_tag": "v1",
+                        "is_frozen": True,
+                        "item_count": 249,
+                        "split_config": {"train": 172},
+                    }
+                ]
+            ),
+        ),
+    )
     out = list_datasets(platform)
     assert out[0]["ad"] == "visdrone-250"
-    assert out[0]["surumler"][0] == {"id": VER, "etiket": "v1", "donmus": True, "oge": 249, "bolme": {"train": 172}}
+    assert out[0]["surumler"][0] == {
+        "id": VER,
+        "etiket": "v1",
+        "donmus": True,
+        "oge": 249,
+        "bolme": {"train": 172},
+    }
 
 
 def test_search_universe_accepts_results_key(fake, platform):
-    fake.on("GET", "/universe/search", (200, envelope({"results": [{"name": "Drone", "slug": "drone",
-                                                                    "owner_username": "u1", "stars_count": 1}]})))
+    fake.on(
+        "GET",
+        "/universe/search",
+        (
+            200,
+            envelope(
+                {"results": [{"name": "Drone", "slug": "drone", "owner_username": "u1", "stars_count": 1}]}
+            ),
+        ),
+    )
     out = search_universe(platform, "drone", "model")
     assert out[0]["ad"] == "Drone" and out[0]["sahip"] == "u1"
     assert fake.calls("GET", "/universe/search")[0].url.params["type"] == "model"

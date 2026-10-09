@@ -43,12 +43,17 @@ def precheck(zip_path: Path, max_mb: float) -> dict:
             raise EvrenError(f"Zip'te güvensiz yol var (klasör dışına çıkıyor): {unsafe[:3]}")
         mac = [n for n in names if "__MACOSX/" in n or PurePosixPath(n).name.startswith("._")]
         if mac:
-            raise EvrenError(f"Zip'te {len(mac)} macOS gizli dosyası var (__MACOSX, ._*). "
-                             "Platform bunları görsel sanıyor; zip'i bunlar olmadan yeniden oluştur.")
+            raise EvrenError(
+                f"Zip'te {len(mac)} macOS gizli dosyası var (__MACOSX, ._*). "
+                "Platform bunları görsel sanıyor; zip'i bunlar olmadan yeniden oluştur."
+            )
         if not any(PurePosixPath(n).name == "data.yaml" for n in names):
             raise EvrenError("Zip'te data.yaml yok (sınıf adları burada tanımlanır).")
-        images = [n for n in names if PurePosixPath(n).parts[:1] == ("images",)
-                  and PurePosixPath(n).suffix.lower() in IMAGE_EXT]
+        images = [
+            n
+            for n in names
+            if PurePosixPath(n).parts[:1] == ("images",) and PurePosixPath(n).suffix.lower() in IMAGE_EXT
+        ]
         if not images:
             raise EvrenError("images/ klasöründe görsel yok.")
         labels = [n for n in names if PurePosixPath(n).parts[:1] == ("labels",) and n.endswith(".txt")]
@@ -63,36 +68,63 @@ def precheck(zip_path: Path, max_mb: float) -> dict:
         warnings.append("Etiket yok: set etiketsiz yüklenecek (etiketli zip +8 CR bonus verir).")
     if dup:
         warnings.append(f"{dup} görsel zip içinde kopya; platform kopyaları atlar.")
-    warnings.append("Hesap genelindeki %80 benzersizlik kapısı denetlenemedi: başka bir setinde aynı "
-                    "görseller varsa yükleme kredisi verilmez.")
-    return {"gorsel": len(images), "etiket": len(labels), "kopya": dup,
-            "boyut_mb": round(size_mb, 2), "uyarilar": warnings}
+    warnings.append(
+        "Hesap genelindeki %80 benzersizlik kapısı denetlenemedi: başka bir setinde aynı "
+        "görseller varsa yükleme kredisi verilmez."
+    )
+    return {
+        "gorsel": len(images),
+        "etiket": len(labels),
+        "kopya": dup,
+        "boyut_mb": round(size_mb, 2),
+        "uyarilar": warnings,
+    }
 
 
-def upload(p: Platform, settings: Settings, *, zip_path: str, name: str,
-           description: str = "", dry_run: bool = True) -> dict:
+def upload(
+    p: Platform, settings: Settings, *, zip_path: str, name: str, description: str = "", dry_run: bool = True
+) -> dict:
     path = Path(zip_path)
     report = precheck(path, settings.max_upload_mb)
     if dry_run:
-        return {"kontrol": report,
-                "not": "Yüklemek için kullanıcı onayıyla dry_run=false ile tekrar çağır. "
-                       "Set gizli (private) oluşturulur."}
+        return {
+            "kontrol": report,
+            "not": "Yüklemek için kullanıcı onayıyla dry_run=false ile tekrar çağır. "
+            "Set gizli (private) oluşturulur.",
+        }
     name = (name or "").strip()
     if not 3 <= len(name) <= 100:
         raise EvrenError("Set adı 3–100 karakter olmalı.")
-    ds = p.post("/datasets", json={"name": name, "modality": "VISION", "description": description or None,
-                                   "visibility": "private", "contributions_enabled": False})
+    ds = p.post(
+        "/datasets",
+        json={
+            "name": name,
+            "modality": "VISION",
+            "description": description or None,
+            "visibility": "private",
+            "contributions_enabled": False,
+        },
+    )
     sid = validate_id((ds or {}).get("id", ""), "veri seti kimliği")
     try:
         events = p.post_ndjson(f"/datasets/{sid}/import", file_path=path, timeout=1800.0)
     except EvrenError as e:
-        raise EvrenError(f"Set oluşturuldu ({sid}) ama içe aktarma sırasında hata: {e} "
-                         "Tekrar yüklemeden önce seti panelde kontrol et; yeniden denemek "
-                         "yeni bir set açar.") from None
+        raise EvrenError(
+            f"Set oluşturuldu ({sid}) ama içe aktarma sırasında hata: {e} "
+            "Tekrar yüklemeden önce seti panelde kontrol et; yeniden denemek "
+            "yeni bir set açar."
+        ) from None
     done = next((e for e in reversed(events) if e.get("t") == "d"), None)
     if done is None:
         errors = [e.get("error") for e in events if e.get("t") == "e"][:1]
-        raise EvrenError(f"Set oluşturuldu ({sid}) ama içe aktarma tamamlanmadı: {errors or 'yanıt yok'}. "
-                         "Set panelde boş durabilir; silme kararı senin.")
-    return {"set_id": sid, "ad": name, "sonuc": {k: v for k, v in done.items() if k != "t"},
-            "kontrol": report, "not": "Yeni set +5 puan getirir [ölçüldü 05.10.2026]."}
+        raise EvrenError(
+            f"Set oluşturuldu ({sid}) ama içe aktarma tamamlanmadı: {errors or 'yanıt yok'}. "
+            "Set panelde boş durabilir; silme kararı senin."
+        )
+    return {
+        "set_id": sid,
+        "ad": name,
+        "sonuc": {k: v for k, v in done.items() if k != "t"},
+        "kontrol": report,
+        "not": "Yeni set +5 puan getirir [ölçüldü 05.10.2026].",
+    }

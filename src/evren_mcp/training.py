@@ -20,9 +20,15 @@ TERMINAL = {"COMPLETED", "FAILED", "CANCELLED", "ERROR"}
 _ARCH = re.compile(r"^[a-z0-9][a-z0-9._-]{1,40}$")
 
 
-def build_body(*, dataset_version_id: str, architecture: str, epochs: int,
-               batch: int | None = None, imgsz: int | None = None,
-               base_model_version_id: str | None = None) -> dict:
+def build_body(
+    *,
+    dataset_version_id: str,
+    architecture: str,
+    epochs: int,
+    batch: int | None = None,
+    imgsz: int | None = None,
+    base_model_version_id: str | None = None,
+) -> dict:
     """`POST /training/jobs` gövdesi.
 
     - Veri sürümü her zaman sabitlenir: yalnız set verilirse platform en yeni
@@ -44,9 +50,13 @@ def build_body(*, dataset_version_id: str, architecture: str, epochs: int,
         hp["batch"] = int(batch)
     if imgsz:
         hp["imgsz"] = int(imgsz)
-    body: dict = {"architecture": architecture, "recipe": "quick", "gpu_count": 1,
-                  "dataset_version_id": validate_id(dataset_version_id, "veri sürümü kimliği"),
-                  "hyperparams": hp}
+    body: dict = {
+        "architecture": architecture,
+        "recipe": "quick",
+        "gpu_count": 1,
+        "dataset_version_id": validate_id(dataset_version_id, "veri sürümü kimliği"),
+        "hyperparams": hp,
+    }
     if base_model_version_id:
         body["base_model_version_id"] = validate_id(base_model_version_id, "başlangıç model sürümü")
     return body
@@ -62,13 +72,23 @@ def estimate(p: Platform, quotes: QuoteBook, settings: Settings, **build_kw) -> 
     est = float(d["estimated_cr"])
     worst = float(d["p95_worst_cr"]) if d.get("p95_worst_cr") is not None else None
     spent = today_spend(p)
-    budget.check(est, max_job=settings.max_job_cr, max_daily=settings.max_daily_cr,
-                 spent_today=spent, pending=quotes.pending_total(), worst=worst)
+    budget.check(
+        est,
+        max_job=settings.max_job_cr,
+        max_daily=settings.max_daily_cr,
+        spent_today=spent,
+        pending=quotes.pending_total(),
+        worst=worst,
+    )
     q = quotes.add(project, body, est, worst)
     return {
-        "teklif": q.id, "gecerlilik_dk": int(quotes.ttl_s // 60),
-        "tahmini_cr": est, "en_kotu_cr": q.worst_cr, "sure_saat": d.get("wall_hours"),
-        "uygulanan_ayarlar": d.get("applied_hyperparams"), "uyarilar": d.get("warnings") or [],
+        "teklif": q.id,
+        "gecerlilik_dk": int(quotes.ttl_s // 60),
+        "tahmini_cr": est,
+        "en_kotu_cr": q.worst_cr,
+        "sure_saat": d.get("wall_hours"),
+        "uygulanan_ayarlar": d.get("applied_hyperparams"),
+        "uyarilar": d.get("warnings") or [],
         "gunluk": {"bugun_harcanan_cr": round(spent, 4), "tavan_cr": settings.max_daily_cr},
         "not": "Başlatmak için kullanıcıya tutarı göster, onay al, sonra start_training(teklif).",
     }
@@ -77,9 +97,12 @@ def estimate(p: Platform, quotes: QuoteBook, settings: Settings, **build_kw) -> 
 def _find_created(p: Platform, body: dict, since: datetime) -> dict | None:
     for j in as_list(p.get("/training/jobs", params={"limit": 10})):
         created = j.get("created_at")
-        if (created and parse_ts(created) >= since - timedelta(seconds=60)
-                and j.get("dataset_version_id") == body["dataset_version_id"]
-                and j.get("architecture") == body["architecture"]):
+        if (
+            created
+            and parse_ts(created) >= since - timedelta(seconds=60)
+            and j.get("dataset_version_id") == body["dataset_version_id"]
+            and j.get("architecture") == body["architecture"]
+        ):
             return j
     return None
 
@@ -97,12 +120,14 @@ def _resolve_ambiguous(p: Platform, journal: Journal, q, sent_at: datetime) -> d
         raise EvrenError(
             "Durum belirsiz: platform eğitim isteğine net yanıt vermedi ve iş listesi de "
             "okunamadı. İş oluşmuş olabilir; istek tekrar gönderilmedi. Yeni eğitim "
-            "başlatmadan önce birkaç dakika sonra list_trainings ile kontrol et.") from None
+            "başlatmadan önce birkaç dakika sonra list_trainings ile kontrol et."
+        ) from None
     if job is None:
         raise EvrenError(
             "Platform eğitim isteğine net yanıt vermedi ve listede yeni iş görünmüyor. "
             "İstek tekrar gönderilmedi (çift ücret riski). Birkaç dakika sonra "
-            "list_trainings ile bak; iş yoksa yeni teklifle tekrar dene.")
+            "list_trainings ile bak; iş yoksa yeni teklifle tekrar dene."
+        )
     return job
 
 
@@ -110,8 +135,14 @@ def start(p: Platform, quotes: QuoteBook, settings: Settings, journal: Journal, 
     q = quotes.take(quote_id)
     # Kontrol ve ayırma tek adım: eşzamanlı ikinci başlatma bu ayırmayı görür.
     with quotes.spend_lock:
-        budget.check(q.estimated_cr, max_job=settings.max_job_cr, max_daily=settings.max_daily_cr,
-                     spent_today=today_spend(p), pending=quotes.pending_total(), worst=q.worst_cr)
+        budget.check(
+            q.estimated_cr,
+            max_job=settings.max_job_cr,
+            max_daily=settings.max_daily_cr,
+            spent_today=today_spend(p),
+            pending=quotes.pending_total(),
+            worst=q.worst_cr,
+        )
         token = quotes.record_spend(q.estimated_cr)
     try:
         before = get_points(p)
@@ -128,28 +159,46 @@ def start(p: Platform, quotes: QuoteBook, settings: Settings, journal: Journal, 
         job = _resolve_ambiguous(p, journal, q, sent_at)
     if not isinstance(job, dict) or not job.get("id"):
         raise EvrenError("Platform eğitim kaydını döndürmedi; list_trainings ile kontrol et.")
-    journal.append("egitim_basladi", is_id=job["id"], teklif=q.id, govde=q.body,
-                   tahmini_cr=q.estimated_cr, puan_once=before)
-    return {"is_id": job["id"], "durum": job.get("status"),
-            "durum_tr": STATUS_TR.get(str(job.get("status")), job.get("status")),
-            "tahmini_cr": q.estimated_cr,
-            "not": "İlerlemeyi get_training ile izle; küçük bir iş birkaç dakika sürer."}
+    journal.append(
+        "egitim_basladi",
+        is_id=job["id"],
+        teklif=q.id,
+        govde=q.body,
+        tahmini_cr=q.estimated_cr,
+        puan_once=before,
+    )
+    return {
+        "is_id": job["id"],
+        "durum": job.get("status"),
+        "durum_tr": STATUS_TR.get(str(job.get("status")), job.get("status")),
+        "tahmini_cr": q.estimated_cr,
+        "not": "İlerlemeyi get_training ile izle; küçük bir iş birkaç dakika sürer.",
+    }
 
 
 def _summary(j: dict) -> dict:
-    return {"is_id": j.get("id"), "durum": j.get("status"),
-            "durum_tr": STATUS_TR.get(str(j.get("status")), j.get("status")),
-            "mimari": j.get("architecture"), "olusturma": j.get("created_at")}
+    return {
+        "is_id": j.get("id"),
+        "durum": j.get("status"),
+        "durum_tr": STATUS_TR.get(str(j.get("status")), j.get("status")),
+        "mimari": j.get("architecture"),
+        "olusturma": j.get("created_at"),
+    }
 
 
 def status(p: Platform, journal: Journal, job_id: str) -> dict:
     jid = validate_id(job_id, "iş kimliği")
     j = p.get(f"/training/jobs/{jid}")
     out = _summary(j) | {
-        "baslama": j.get("started_at"), "bitis": j.get("completed_at"),
-        "tahmini_cr": j.get("estimated_cr"), "gercek_cr": j.get("actual_cr"),
-        "gpu_saat": j.get("actual_gpu_hours"), "kuyruk_sirasi": j.get("queue_position"),
-        "metrikler": j.get("final_metrics"), "model_surum_id": j.get("model_version_id")}
+        "baslama": j.get("started_at"),
+        "bitis": j.get("completed_at"),
+        "tahmini_cr": j.get("estimated_cr"),
+        "gercek_cr": j.get("actual_cr"),
+        "gpu_saat": j.get("actual_gpu_hours"),
+        "kuyruk_sirasi": j.get("queue_position"),
+        "metrikler": j.get("final_metrics"),
+        "model_surum_id": j.get("model_version_id"),
+    }
     explanation = explain_job(j)
     if explanation:
         out["aciklama"] = explanation
@@ -158,8 +207,15 @@ def status(p: Platform, journal: Journal, job_id: str) -> dict:
         after = get_points(p)
         before = started.get("puan_once")
         diff = after - before if isinstance(after, int) and isinstance(before, int) else None
-        journal.append("egitim_bitti", is_id=jid, durum=j.get("status"), gercek_cr=j.get("actual_cr"),
-                       metrikler=j.get("final_metrics"), puan_sonra=after, puan_farki=diff)
+        journal.append(
+            "egitim_bitti",
+            is_id=jid,
+            durum=j.get("status"),
+            gercek_cr=j.get("actual_cr"),
+            metrikler=j.get("final_metrics"),
+            puan_sonra=after,
+            puan_farki=diff,
+        )
         out["puan_farki"] = diff
     return out
 
@@ -175,5 +231,8 @@ def stop(p: Platform, job_id: str) -> dict:
         durum = STATUS_TR.get(str(j.get("status")), j.get("status"))
         raise EvrenError(f"İş zaten bitmiş ({durum}); durdurulacak bir şey yok.")
     p.post(f"/training/jobs/{jid}/stop")
-    return {"is_id": jid, "istek": "durdurma gönderildi",
-            "not": "Kullanılmayan kredi iade edilir; get_training ile durumu kontrol et."}
+    return {
+        "is_id": jid,
+        "istek": "durdurma gönderildi",
+        "not": "Kullanılmayan kredi iade edilir; get_training ile durumu kontrol et.",
+    }

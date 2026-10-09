@@ -19,7 +19,9 @@ def test_get_plain_body_without_envelope(fake, platform):
 
 
 def test_get_retries_5xx_then_succeeds(fake, platform):
-    fake.on("GET", "/auth/me", (500, {"success": False}), (500, {"success": False}), (200, envelope({"id": "u1"})))
+    fake.on(
+        "GET", "/auth/me", (500, {"success": False}), (500, {"success": False}), (200, envelope({"id": "u1"}))
+    )
     assert platform.get("/auth/me") == {"id": "u1"}
     assert len(fake.calls("GET", "/auth/me")) == 3
     assert all(s <= 15 for s in fake.sleeps)
@@ -38,7 +40,11 @@ def test_get_retries_non_json(fake, platform):
 
 
 def test_get_4xx_not_retried_and_explained(fake, platform):
-    fake.on("GET", "/datasets/x", (404, {"success": False, "error": {"code": "NOT_FOUND", "message": "Veri seti bulunamadı"}}))
+    fake.on(
+        "GET",
+        "/datasets/x",
+        (404, {"success": False, "error": {"code": "NOT_FOUND", "message": "Veri seti bulunamadı"}}),
+    )
     with pytest.raises(PlatformError, match="Bulunamadı"):
         platform.get("/datasets/x")
     assert len(fake.calls("GET", "/datasets/x")) == 1
@@ -58,20 +64,32 @@ def test_post_retry_flag_for_side_effect_free_calls(fake, platform):
 
 
 def test_429_waits_then_retries(fake, platform):
-    fake.on("GET", "/auth/me", lambda r: httpx.Response(429, headers={"Retry-After": "7"}, json={}),
-            (200, envelope({"id": "u1"})))
+    fake.on(
+        "GET",
+        "/auth/me",
+        lambda r: httpx.Response(429, headers={"Retry-After": "7"}, json={}),
+        (200, envelope({"id": "u1"})),
+    )
     assert platform.get("/auth/me") == {"id": "u1"}
     assert 7 in fake.sleeps
 
 
 def test_terms_not_accepted(fake, platform):
-    fake.on("GET", "/auth/me", (403, {"success": False, "error": {"code": "terms_not_accepted", "message": "terms"}}))
+    fake.on(
+        "GET",
+        "/auth/me",
+        (403, {"success": False, "error": {"code": "terms_not_accepted", "message": "terms"}}),
+    )
     with pytest.raises(TermsNotAccepted, match="şart"):
         platform.get("/auth/me")
 
 
 def test_key_never_in_error_message(fake, platform):
-    fake.on("GET", "/auth/me", (400, {"success": False, "error": {"code": "BAD", "message": f"anahtar {KEY} hatalı"}}))
+    fake.on(
+        "GET",
+        "/auth/me",
+        (400, {"success": False, "error": {"code": "BAD", "message": f"anahtar {KEY} hatalı"}}),
+    )
     with pytest.raises(PlatformError) as e:
         platform.get("/auth/me")
     assert KEY not in str(e.value)
@@ -123,9 +141,9 @@ def test_parse_ts_accepts_z_and_offset():
     assert parse_ts("2026-10-05T19:53:05Z") == parse_ts("2026-10-05T19:53:05.000+00:00")
 
 
-
 def test_download_transport_error_is_turkish_and_leaves_no_file(fake, platform, tmp_path):
     """İnceleme (önemli 7): akış sırasında bağlantı koparsa anlaşılır hata, yarım dosya yok."""
+
     def kopuk(request):
         raise httpx.ReadTimeout("zaman aşımı", request=request)
 

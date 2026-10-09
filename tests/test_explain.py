@@ -2,16 +2,22 @@ from evren_mcp.explain import STATUS_TR, explain_http, explain_job
 
 
 def test_disk_full_job_is_platform_side_and_mentions_refund():
-    job = {"status": "FAILED", "error_category": "INFRA",
-           "error_message": "HPC dosya yazimi hatasi: [Errno 28] No space left on device: '/tmp/x'\n--- traceback ---\nFile \"/app/app/workers/tasks_training.py\""}
+    job = {
+        "status": "FAILED",
+        "error_category": "INFRA",
+        "error_message": "HPC dosya yazimi hatasi: [Errno 28] No space left on device: '/tmp/x'\n--- traceback ---\nFile \"/app/app/workers/tasks_training.py\"",
+    }
     metin = explain_job(job)
     assert "disk" in metin.lower() and "iade" in metin
     assert "/app/app" not in metin  # iç altyapı ayrıntısı aktarılmaz (#37)
 
 
 def test_other_failure_shows_only_first_line():
-    job = {"status": "FAILED", "error_category": "USER",
-           "error_message": "CUDA out of memory\nsatir2 gizli ayrinti"}
+    job = {
+        "status": "FAILED",
+        "error_category": "USER",
+        "error_message": "CUDA out of memory\nsatir2 gizli ayrinti",
+    }
     metin = explain_job(job)
     assert "CUDA out of memory" in metin and "satir2" not in metin
 

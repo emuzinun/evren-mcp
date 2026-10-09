@@ -18,8 +18,12 @@ def make_zip(path: Path, files: dict[str, bytes]) -> Path:
     return path
 
 
-GOOD = {"data.yaml": b"names: {0: car}\n", "images/train/a.jpg": b"A", "images/train/b.jpg": b"B",
-        "labels/train/a.txt": b"0 0.5 0.5 0.1 0.1\n"}
+GOOD = {
+    "data.yaml": b"names: {0: car}\n",
+    "images/train/a.jpg": b"A",
+    "images/train/b.jpg": b"B",
+    "labels/train/a.txt": b"0 0.5 0.5 0.1 0.1\n",
+}
 
 
 def test_precheck_good(tmp_path):
@@ -75,30 +79,50 @@ def test_upload_dry_run_sends_nothing(fake, platform, fast_settings, tmp_path):
 
 def test_upload_creates_private_set_and_imports(fake, platform, fast_settings, tmp_path):
     fake.on("POST", "/datasets", (201, envelope({"id": DS})))
-    fake.on("POST", f"/datasets/{DS}/import",
-            lambda r: httpx.Response(200, text='{"t":"h"}\n{"t":"d","created":2,"annotations":1}\n'))
-    out = upload(platform, fast_settings, zip_path=str(make_zip(tmp_path / "a.zip", GOOD)),
-                 name="deneme", dry_run=False)
+    fake.on(
+        "POST",
+        f"/datasets/{DS}/import",
+        lambda r: httpx.Response(200, text='{"t":"h"}\n{"t":"d","created":2,"annotations":1}\n'),
+    )
+    out = upload(
+        platform,
+        fast_settings,
+        zip_path=str(make_zip(tmp_path / "a.zip", GOOD)),
+        name="deneme",
+        dry_run=False,
+    )
     assert out["set_id"] == DS and out["sonuc"]["created"] == 2
     assert b'"visibility":"private"' in fake.calls("POST", "/datasets")[0].content.replace(b" ", b"")
 
 
 def test_upload_import_without_done_event_is_explained(fake, platform, fast_settings, tmp_path):
     fake.on("POST", "/datasets", (201, envelope({"id": DS})))
-    fake.on("POST", f"/datasets/{DS}/import", lambda r: httpx.Response(200, text='{"t":"e","error":"bozuk"}\n'))
+    fake.on(
+        "POST", f"/datasets/{DS}/import", lambda r: httpx.Response(200, text='{"t":"e","error":"bozuk"}\n')
+    )
     with pytest.raises(EvrenError, match=DS):
-        upload(platform, fast_settings, zip_path=str(make_zip(tmp_path / "a.zip", GOOD)),
-               name="deneme", dry_run=False)
-
+        upload(
+            platform,
+            fast_settings,
+            zip_path=str(make_zip(tmp_path / "a.zip", GOOD)),
+            name="deneme",
+            dry_run=False,
+        )
 
 
 def test_upload_import_transport_error_mentions_set_id(fake, platform, fast_settings, tmp_path):
     """İnceleme (önemli 7): set oluştuktan sonra bağlantı koparsa set kimliği kaybolmamalı."""
+
     def kopuk(request):
         raise httpx.ConnectError("koptu", request=request)
 
     fake.on("POST", "/datasets", (201, envelope({"id": DS})))
     fake.on("POST", f"/datasets/{DS}/import", kopuk)
     with pytest.raises(EvrenError, match=DS):
-        upload(platform, fast_settings, zip_path=str(make_zip(tmp_path / "a.zip", GOOD)),
-               name="deneme", dry_run=False)
+        upload(
+            platform,
+            fast_settings,
+            zip_path=str(make_zip(tmp_path / "a.zip", GOOD)),
+            name="deneme",
+            dry_run=False,
+        )

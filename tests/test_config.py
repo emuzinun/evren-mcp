@@ -20,14 +20,16 @@ def test_defaults():
 
 
 def test_overrides_and_paths(tmp_path: Path):
-    s = load_settings({
-        "EVREN_PLATFORM_API_KEY": "abcd1234efgh",
-        "EVREN_MAX_JOB_CR": "2.5",
-        "EVREN_MAX_DAILY_CR": "10",
-        "EVREN_JOURNAL_PATH": str(tmp_path / "g.jsonl"),
-        "EVREN_DOWNLOAD_DIR": str(tmp_path / "m"),
-        "EVREN_MAX_UPLOAD_MB": "100",
-    })
+    s = load_settings(
+        {
+            "EVREN_PLATFORM_API_KEY": "abcd1234efgh",
+            "EVREN_MAX_JOB_CR": "2.5",
+            "EVREN_MAX_DAILY_CR": "10",
+            "EVREN_JOURNAL_PATH": str(tmp_path / "g.jsonl"),
+            "EVREN_DOWNLOAD_DIR": str(tmp_path / "m"),
+            "EVREN_MAX_UPLOAD_MB": "100",
+        }
+    )
     assert s.max_job_cr == 2.5 and s.max_daily_cr == 10.0
     assert s.journal_path == tmp_path / "g.jsonl"
     assert s.download_dir == tmp_path / "m"

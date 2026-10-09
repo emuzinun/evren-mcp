@@ -31,16 +31,20 @@ class FakeEvren:
         return self
 
     def calls(self, method: str, path: str) -> list[httpx.Request]:
-        return [r for r in self.requests
-                if r.method == method and r.url.path.removeprefix("/api/v1") == path]
+        return [r for r in self.requests if r.method == method and r.url.path.removeprefix("/api/v1") == path]
 
     def handler(self, request: httpx.Request) -> httpx.Response:
         self.requests.append(request)
         key = (request.method, request.url.path.removeprefix("/api/v1"))
         queue = self.routes.get(key)
         if not queue:
-            return httpx.Response(404, json={"success": False, "error": {
-                "code": "NOT_FOUND", "message": f"sahte platformda yok: {key}"}})
+            return httpx.Response(
+                404,
+                json={
+                    "success": False,
+                    "error": {"code": "NOT_FOUND", "message": f"sahte platformda yok: {key}"},
+                },
+            )
         item = queue.pop(0) if len(queue) > 1 else queue[0]
         if callable(item):
             return item(request)

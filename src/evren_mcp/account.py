@@ -20,9 +20,15 @@ def get_credits(p: Platform, limit: int = 10) -> dict:
     return {
         "bakiye_cr": float(org.get("credit_balance") or 0),
         "plan": org.get("plan_type"),
-        "son_hareketler": [{"zaman": x.get("created_at"), "tur": x.get("tx_type"),
-                            "tutar_cr": float(x.get("amount") or 0),
-                            "aciklama": x.get("description")} for x in items],
+        "son_hareketler": [
+            {
+                "zaman": x.get("created_at"),
+                "tur": x.get("tx_type"),
+                "tutar_cr": float(x.get("amount") or 0),
+                "aciklama": x.get("description"),
+            }
+            for x in items
+        ],
     }
 
 
@@ -35,11 +41,11 @@ def _page_items(page: object, offset: int) -> list[dict]:
         items = page["items"]
         total = page.get("total")
         if not items and isinstance(total, int) and offset < total:
-            raise EvrenError(f"Kredi defteri eksik döndü ({offset}/{total}); güvenlik için "
-                             "kredi harcayan işlem yapılmadı.")
+            raise EvrenError(
+                f"Kredi defteri eksik döndü ({offset}/{total}); güvenlik için kredi harcayan işlem yapılmadı."
+            )
         return items
-    raise EvrenError("Kredi defteri beklenmeyen biçimde döndü; güvenlik için kredi harcayan "
-                     "işlem yapılmadı.")
+    raise EvrenError("Kredi defteri beklenmeyen biçimde döndü; güvenlik için kredi harcayan işlem yapılmadı.")
 
 
 def _new_rows_today(p: Platform, start: datetime) -> list[dict]:
@@ -61,8 +67,10 @@ def _new_rows_today(p: Platform, start: datetime) -> list[dict]:
                 return rows
             rows.append(x)
         offset += len(items)
-    raise EvrenError(f"Bugünün kredi defteri {MAX_LEDGER_PAGES * 50}+ satır (çoğu LLM çağrısı); "
-                     "harcama hesaplanamadı. Güvenlik için kredi harcayan işlem yapılmadı.")
+    raise EvrenError(
+        f"Bugünün kredi defteri {MAX_LEDGER_PAGES * 50}+ satır (çoğu LLM çağrısı); "
+        "harcama hesaplanamadı. Güvenlik için kredi harcayan işlem yapılmadı."
+    )
 
 
 def today_spend(p: Platform, now: datetime | None = None) -> float:
@@ -85,8 +93,11 @@ def today_spend(p: Platform, now: datetime | None = None) -> float:
     if new:
         cache["rows"] = new + cache["rows"]
         cache["newest"] = new[0].get("id")
-    debits = {str(x.get("reference_id")) for x in cache["rows"]
-              if float(x.get("amount") or 0) < 0 and x.get("reference_id")}
+    debits = {
+        str(x.get("reference_id"))
+        for x in cache["rows"]
+        if float(x.get("amount") or 0) < 0 and x.get("reference_id")
+    }
     total = 0.0
     for x in cache["rows"]:
         amount = float(x.get("amount") or 0)
@@ -120,7 +131,9 @@ def get_standing(p: Platform) -> dict:
         else:
             gap = limit - points
         out["donemler"][label] = {"ilk10_siniri": limit, "ilk10_icinde": inside, "fark": gap}
-    out["not"] = ("Sıralama dönem puanını kullanıyor; dönem puanın API'de yok, fark profil "
-                  "puanından hesaplanır ve en az bu kadardır. fark=null: listede değilsin, "
-                  "kalan fark bilinmiyor [ölçüldü 06.10.2026].")
+    out["not"] = (
+        "Sıralama dönem puanını kullanıyor; dönem puanın API'de yok, fark profil "
+        "puanından hesaplanır ve en az bu kadardır. fark=null: listede değilsin, "
+        "kalan fark bilinmiyor [ölçüldü 06.10.2026]."
+    )
     return out

@@ -26,8 +26,17 @@ def test_body_pins_version_and_puts_epochs_in_hyperparams():
     assert b["base_model_version_id"] == BASE
 
 
-@pytest.mark.parametrize("over", [{"epochs": 0}, {"epochs": 5000}, {"architecture": "yolo v8; rm"},
-                                  {"dataset_version_id": "visdrone"}, {"batch": 0}, {"imgsz": 10}])
+@pytest.mark.parametrize(
+    "over",
+    [
+        {"epochs": 0},
+        {"epochs": 5000},
+        {"architecture": "yolo v8; rm"},
+        {"dataset_version_id": "visdrone"},
+        {"batch": 0},
+        {"imgsz": 10},
+    ],
+)
 def test_body_validation(over):
     with pytest.raises(EvrenError):
         build_body(**kw(**over))
@@ -40,9 +49,23 @@ def ledger_empty(fake):
 
 def test_estimate_creates_quote(fake, platform, fast_settings):
     ledger_empty(fake)
-    fake.on("POST", "/training/jobs/dry-run", (200, envelope({
-        "valid": True, "estimated_cr": 0.54, "p95_worst_cr": 1.86, "wall_hours": 0.1,
-        "applied_hyperparams": {"epochs": 5}, "warnings": []})))
+    fake.on(
+        "POST",
+        "/training/jobs/dry-run",
+        (
+            200,
+            envelope(
+                {
+                    "valid": True,
+                    "estimated_cr": 0.54,
+                    "p95_worst_cr": 1.86,
+                    "wall_hours": 0.1,
+                    "applied_hyperparams": {"epochs": 5},
+                    "warnings": [],
+                }
+            ),
+        ),
+    )
     qb = QuoteBook()
     out = estimate(platform, qb, fast_settings, **kw())
     assert out["teklif"].startswith("T-") and out["tahmini_cr"] == 0.54 and out["en_kotu_cr"] == 1.86
@@ -95,9 +118,23 @@ def test_start_happy_path_journals(fake, platform, fast_settings):
 
 
 def test_start_rechecks_budget_at_start(fake, platform, fast_settings):
-    fake.on("GET", "/billing/ledger", (200, {"items": [
-        {"created_at": datetime.now(timezone.utc).isoformat(), "tx_type": "HOLD", "amount": "-19.9"}]}),
-        (200, {"items": []}))
+    fake.on(
+        "GET",
+        "/billing/ledger",
+        (
+            200,
+            {
+                "items": [
+                    {
+                        "created_at": datetime.now(timezone.utc).isoformat(),
+                        "tx_type": "HOLD",
+                        "amount": "-19.9",
+                    }
+                ]
+            },
+        ),
+        (200, {"items": []}),
+    )
     qb = QuoteBook()
     with pytest.raises(EvrenError, match="Günlük tavan"):
         start(platform, qb, fast_settings, Journal(fast_settings.journal_path), quote_for(qb).id)
@@ -108,9 +145,24 @@ def test_start_ambiguous_finds_created_job_without_resending(fake, platform, fas
     fake.on("GET", "/billing/ledger", (200, {"items": []}))
     fake.on("GET", "/auth/me", me(1263))
     fake.on("POST", "/training/jobs", (500, {"success": False}))
-    fake.on("GET", "/training/jobs", (200, {"items": [{
-        "id": JOB, "status": "EXPORTING", "architecture": "yolov8n", "dataset_version_id": VER,
-        "created_at": datetime.now(timezone.utc).isoformat()}]}))
+    fake.on(
+        "GET",
+        "/training/jobs",
+        (
+            200,
+            {
+                "items": [
+                    {
+                        "id": JOB,
+                        "status": "EXPORTING",
+                        "architecture": "yolov8n",
+                        "dataset_version_id": VER,
+                        "created_at": datetime.now(timezone.utc).isoformat(),
+                    }
+                ]
+            },
+        ),
+    )
     qb = QuoteBook()
     out = start(platform, qb, fast_settings, Journal(fast_settings.journal_path), quote_for(qb).id)
     assert out["is_id"] == JOB
@@ -131,9 +183,22 @@ def test_start_ambiguous_non_json_checks_list(fake, platform, fast_settings):
 def test_status_explains_and_journals_finish_once(fake, platform, fast_settings):
     j = Journal(fast_settings.journal_path)
     j.append("egitim_basladi", is_id=JOB, puan_once=1263)
-    fake.on("GET", f"/training/jobs/{JOB}", (200, envelope({
-        "id": JOB, "status": "COMPLETED", "actual_cr": "0.50", "final_metrics": {"mAP50": 0.41},
-        "model_version_id": "00000000-0000-4000-8000-000000000004"})))
+    fake.on(
+        "GET",
+        f"/training/jobs/{JOB}",
+        (
+            200,
+            envelope(
+                {
+                    "id": JOB,
+                    "status": "COMPLETED",
+                    "actual_cr": "0.50",
+                    "final_metrics": {"mAP50": 0.41},
+                    "model_version_id": "00000000-0000-4000-8000-000000000004",
+                }
+            ),
+        ),
+    )
     fake.on("GET", "/auth/me", me(1293))
     out = status(platform, j, JOB)
     assert out["durum_tr"] == "tamamlandı" and out["puan_farki"] == 30
@@ -142,9 +207,21 @@ def test_status_explains_and_journals_finish_once(fake, platform, fast_settings)
 
 
 def test_status_disk_failure_explained(fake, platform, fast_settings):
-    fake.on("GET", f"/training/jobs/{JOB}", (200, envelope({
-        "id": JOB, "status": "FAILED", "error_category": "INFRA",
-        "error_message": "[Errno 28] No space left on device"})))
+    fake.on(
+        "GET",
+        f"/training/jobs/{JOB}",
+        (
+            200,
+            envelope(
+                {
+                    "id": JOB,
+                    "status": "FAILED",
+                    "error_category": "INFRA",
+                    "error_message": "[Errno 28] No space left on device",
+                }
+            ),
+        ),
+    )
     out = status(platform, Journal(fast_settings.journal_path), JOB)
     assert "disk" in out["aciklama"].lower()
 
@@ -163,10 +240,24 @@ def test_stop_running_job(fake, platform):
 
 
 def test_list_jobs(fake, platform):
-    fake.on("GET", "/training/jobs", (200, {"items": [{"id": JOB, "status": "FAILED", "architecture": "yolov8n",
-                                                       "created_at": "2026-10-05T18:48:42Z"}]}))
+    fake.on(
+        "GET",
+        "/training/jobs",
+        (
+            200,
+            {
+                "items": [
+                    {
+                        "id": JOB,
+                        "status": "FAILED",
+                        "architecture": "yolov8n",
+                        "created_at": "2026-10-05T18:48:42Z",
+                    }
+                ]
+            },
+        ),
+    )
     assert list_jobs(platform)[0]["durum_tr"] == "başarısız"
-
 
 
 def test_start_ambiguous_and_list_unreadable_is_unclear_not_retry(fake, platform, fast_settings):
@@ -185,6 +276,7 @@ def test_start_ambiguous_and_list_unreadable_is_unclear_not_retry(fake, platform
 def test_recent_start_counts_until_ledger_catches_up(fake, platform, fast_settings):
     """İnceleme (önemli 4): defter HOLD'u gecikmeli gösterirse ikinci başlatma tavanı delmemeli."""
     import dataclasses
+
     s = dataclasses.replace(fast_settings, max_daily_cr=1.0)
     fake.on("GET", "/billing/ledger", (200, {"items": []}))
     fake.on("GET", "/auth/me", me(1263))
@@ -207,6 +299,7 @@ def test_parallel_starts_cannot_both_pass(fake, platform, fast_settings, monkeyp
     import threading
 
     from evren_mcp import training as training_mod
+
     s = dataclasses.replace(fast_settings, max_daily_cr=1.0)
     fake.on("GET", "/auth/me", me(1263))
     fake.on("POST", "/training/jobs", (201, envelope({"id": JOB, "status": "EXPORTING"})))
@@ -243,8 +336,11 @@ def test_parallel_starts_cannot_both_pass(fake, platform, fast_settings, monkeyp
 def test_job_cap_uses_worst_case(fake, platform, fast_settings):
     """İnceleme (önemli 6): tahmin 4,0 ama en kötü 12 CR; tek iş tavanını en kötü durum aşıyor."""
     ledger_empty(fake)
-    fake.on("POST", "/training/jobs/dry-run",
-            (200, envelope({"valid": True, "estimated_cr": 4.0, "p95_worst_cr": 12.0})))
+    fake.on(
+        "POST",
+        "/training/jobs/dry-run",
+        (200, envelope({"valid": True, "estimated_cr": 4.0, "p95_worst_cr": 12.0})),
+    )
     qb = QuoteBook()
     with pytest.raises(EvrenError, match="en kötü"):
         estimate(platform, qb, fast_settings, **kw())

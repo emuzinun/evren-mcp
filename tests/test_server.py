@@ -87,7 +87,11 @@ def test_start_training_without_quote_is_refused(fake, platform, fast_settings):
 
 
 def test_prompts_and_resources(fake, platform, fast_settings):
-    fake.on("GET", "/billing/earning/overview", (200, envelope({"rules": [{"slug": "daily-login", "cr_reward": 10}]})))
+    fake.on(
+        "GET",
+        "/billing/earning/overview",
+        (200, envelope({"rules": [{"slug": "daily-login", "cr_reward": 10}]})),
+    )
     srv = build_server(fast_settings, platform=platform)
 
     async def go():

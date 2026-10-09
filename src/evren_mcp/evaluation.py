@@ -34,19 +34,37 @@ def _metrics(obj: object, prefix: str = "", out: dict | None = None) -> dict:
     return out
 
 
-def evaluate(p: Platform, quotes: QuoteBook, settings: Settings, *, model_version_id: str,
-             dataset_id: str, dataset_version_id: str, split: str = "validation",
-             image_size: int = 640) -> dict:
+def evaluate(
+    p: Platform,
+    quotes: QuoteBook,
+    settings: Settings,
+    *,
+    model_version_id: str,
+    dataset_id: str,
+    dataset_version_id: str,
+    split: str = "validation",
+    image_size: int = 640,
+) -> dict:
     if split not in _SPLITS:
         raise EvrenError(f"Geçersiz bölme: '{split}'. Seçenekler: {_SPLITS}.")
-    body = {"model_version_id": validate_id(model_version_id, "model sürümü"),
-            "dataset_id": validate_id(dataset_id, "veri seti kimliği"),
-            "dataset_version_id": validate_id(dataset_version_id, "veri sürümü kimliği"),
-            "split": split, "confidence": 0.001, "iou": 0.6, "image_size": int(image_size),
-            "include_samples": False}
+    body = {
+        "model_version_id": validate_id(model_version_id, "model sürümü"),
+        "dataset_id": validate_id(dataset_id, "veri seti kimliği"),
+        "dataset_version_id": validate_id(dataset_version_id, "veri sürümü kimliği"),
+        "split": split,
+        "confidence": 0.001,
+        "iou": 0.6,
+        "image_size": int(image_size),
+        "include_samples": False,
+    }
     with quotes.spend_lock:
-        budget.check(EVAL_ESTIMATE_CR, max_job=settings.max_job_cr, max_daily=settings.max_daily_cr,
-                     spent_today=today_spend(p), pending=quotes.pending_total())
+        budget.check(
+            EVAL_ESTIMATE_CR,
+            max_job=settings.max_job_cr,
+            max_daily=settings.max_daily_cr,
+            spent_today=today_spend(p),
+            pending=quotes.pending_total(),
+        )
         token = quotes.record_spend(EVAL_ESTIMATE_CR)
     try:
         d = p.post("/inference/evaluate", json=body, timeout=1800.0)
@@ -56,6 +74,8 @@ def evaluate(p: Platform, quotes: QuoteBook, settings: Settings, *, model_versio
         raise
     out: dict = {"bolme": split, "metrikler": _metrics(d)}
     if split == "test":
-        out["uyari"] = ("Test kümesi tek seferlik ölçülür; bu sonuca bakarak ayar değiştirilirse "
-                        "test tarafsızlığını yitirir.")
+        out["uyari"] = (
+            "Test kümesi tek seferlik ölçülür; bu sonuca bakarak ayar değiştirilirse "
+            "test tarafsızlığını yitirir."
+        )
     return out

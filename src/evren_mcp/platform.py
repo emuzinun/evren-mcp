@@ -61,8 +61,9 @@ def parse_ts(s: str) -> datetime:
 
 
 class Platform:
-    def __init__(self, settings: Settings, http: httpx.Client | None = None,
-                 sleep: Callable[[float], Any] = time.sleep) -> None:
+    def __init__(
+        self, settings: Settings, http: httpx.Client | None = None, sleep: Callable[[float], Any] = time.sleep
+    ) -> None:
         self.settings = settings
         self.http = http or httpx.Client(timeout=120.0)
         self._sleep = sleep
@@ -138,7 +139,7 @@ class Platform:
         last = ""
         for i in range(ATTEMPTS):
             if i:
-                self._sleep(min(2 ** i, MAX_BACKOFF_S))
+                self._sleep(min(2**i, MAX_BACKOFF_S))
             try:
                 r = self._request(method, path, **kw)
             except httpx.TransportError:
@@ -154,13 +155,21 @@ class Platform:
         raise PlatformError(
             f"Platform {path} için {ATTEMPTS} denemede yanıt vermedi ({last}). "
             "Platform kaynaklı geçici bir sorun olabilir; biraz sonra tekrar dene.",
-            code="unavailable")
+            code="unavailable",
+        )
 
     def get(self, path: str, params: dict | None = None) -> Any:
         return self._retrying("GET", path, params=params)
 
-    def post(self, path: str, *, json: Any = None, params: dict | None = None,
-             timeout: float | None = None, retry: bool = False) -> Any:
+    def post(
+        self,
+        path: str,
+        *,
+        json: Any = None,
+        params: dict | None = None,
+        timeout: float | None = None,
+        retry: bool = False,
+    ) -> Any:
         kw: dict[str, Any] = {"json": json, "params": params}
         if timeout:
             kw["timeout"] = timeout
@@ -171,18 +180,24 @@ class Platform:
         except httpx.TransportError:
             raise PlatformError(
                 f"POST {path} sırasında bağlantı koptu; işlemin platformda gerçekleşip "
-                "gerçekleşmediği belirsiz. İstek tekrar gönderilmedi.", code="ambiguous") from None
+                "gerçekleşmediği belirsiz. İstek tekrar gönderilmedi.",
+                code="ambiguous",
+            ) from None
         if r.status_code >= 500:
             raise PlatformError(
                 f"Platform POST {path} isteğine {r.status_code} döndü; istek tekrar "
                 "gönderilmedi. İşlemin gerçekleşip gerçekleşmediği belirsiz.",
-                status=r.status_code, code="ambiguous")
+                status=r.status_code,
+                code="ambiguous",
+            )
         try:
             return self._unwrap(r)
         except _NotJson:
             raise PlatformError(
-                f"Platform POST {path} isteğine JSON olmayan yanıt döndü; istek tekrar "
-                "gönderilmedi.", status=r.status_code, code="ambiguous") from None
+                f"Platform POST {path} isteğine JSON olmayan yanıt döndü; istek tekrar gönderilmedi.",
+                status=r.status_code,
+                code="ambiguous",
+            ) from None
 
     def post_ndjson(self, path: str, *, file_path: Path, timeout: float) -> list[dict]:
         """Zip içe aktarma: yanıt satır satır JSON olaylarıdır (`t`: h/p/d/e)."""
@@ -191,8 +206,13 @@ class Platform:
         events: list[dict] = []
         try:
             with file_path.open("rb") as f:
-                with self.http.stream("POST", url, headers=self._headers(url), timeout=timeout,
-                                      files={"file": (file_path.name, f, "application/zip")}) as r:
+                with self.http.stream(
+                    "POST",
+                    url,
+                    headers=self._headers(url),
+                    timeout=timeout,
+                    files={"file": (file_path.name, f, "application/zip")},
+                ) as r:
                     if r.status_code != 200:
                         r.read()
                         raise self._error(r)
@@ -205,8 +225,11 @@ class Platform:
                         except ValueError:
                             continue
         except httpx.TransportError:
-            raise PlatformError("Yükleme sırasında bağlantı koptu; içe aktarmanın platformda "
-                                "tamamlanıp tamamlanmadığı belirsiz.", code="ambiguous") from None
+            raise PlatformError(
+                "Yükleme sırasında bağlantı koptu; içe aktarmanın platformda "
+                "tamamlanıp tamamlanmadığı belirsiz.",
+                code="ambiguous",
+            ) from None
         return events
 
     def download(self, url: str, dest: Path) -> int:
@@ -227,8 +250,10 @@ class Platform:
                         size += len(chunk)
             part.replace(dest)
         except httpx.TransportError:
-            raise PlatformError("İndirme sırasında bağlantı koptu; dosya yazılmadı. "
-                                "Biraz sonra tekrar dene.", code="unavailable") from None
+            raise PlatformError(
+                "İndirme sırasında bağlantı koptu; dosya yazılmadı. Biraz sonra tekrar dene.",
+                code="unavailable",
+            ) from None
         finally:
             if part.exists():
                 part.unlink()

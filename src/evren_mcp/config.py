@@ -71,7 +71,11 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         project_id=(env.get("EVREN_PROJECT_ID") or "").strip() or None,
         max_job_cr=_positive(env, "EVREN_MAX_JOB_CR", defaults.max_job_cr),
         max_daily_cr=_positive(env, "EVREN_MAX_DAILY_CR", defaults.max_daily_cr),
-        journal_path=Path(env["EVREN_JOURNAL_PATH"]) if env.get("EVREN_JOURNAL_PATH") else defaults.journal_path,
-        download_dir=Path(env["EVREN_DOWNLOAD_DIR"]) if env.get("EVREN_DOWNLOAD_DIR") else defaults.download_dir,
+        journal_path=Path(env["EVREN_JOURNAL_PATH"])
+        if env.get("EVREN_JOURNAL_PATH")
+        else defaults.journal_path,
+        download_dir=Path(env["EVREN_DOWNLOAD_DIR"])
+        if env.get("EVREN_DOWNLOAD_DIR")
+        else defaults.download_dir,
         max_upload_mb=int(_positive(env, "EVREN_MAX_UPLOAD_MB", defaults.max_upload_mb)),
     )

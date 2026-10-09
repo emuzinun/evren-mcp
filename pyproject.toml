@@ -1,27 +1,89 @@
 [project]
 name = "evren-mcp"
 version = "0.1.0"
-description = "EVREN platformu için MCP sunucusu: Claude Code'dan maliyet onaylı model eğitimi"
+description = "Unofficial MCP server for the EVREN AI platform: cost-approved model training from Claude Code"
 readme = "README.md"
 requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "emuzinun" }]
+keywords = ["mcp", "model-context-protocol", "claude", "claude-code", "evren", "ssyz", "yolo", "training"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Natural Language :: Turkish",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = [
     "mcp>=2.3,<3",
     "httpx>=0.28",
     "python-dotenv>=1.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/emuzinun/evren-mcp"
+Repository = "https://github.com/emuzinun/evren-mcp"
+Issues = "https://github.com/emuzinun/evren-mcp/issues"
+Changelog = "https://github.com/emuzinun/evren-mcp/blob/main/CHANGELOG.md"
+
 [project.scripts]
 evren-mcp = "evren_mcp.server:main"
 
 [dependency-groups]
-dev = ["pytest>=8"]
+dev = [
+    "mypy>=2.4.0",
+    "pytest>=8",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.16.10",
+]
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/evren_mcp"]
 
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "README.md", "README.tr.md", "CHANGELOG.md", "LICENSE"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "--strict-markers"
+
+[tool.coverage.run]
+source = ["evren_mcp"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+
+[tool.ruff]
+line-length = 110
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "RUF", "S", "PT"]
+ignore = [
+    "RUF001", "RUF002", "RUF003",  # Türkçe metin ve "…" belirsiz karakter sayılmasın
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106", "PT018"]  # testte assert, sahte anahtar, birleşik assert serbest
+
+[tool.mypy]
+python_version = "3.11"
+files = ["src"]
+warn_unused_ignores = true
+warn_redundant_casts = true
+check_untyped_defs = true

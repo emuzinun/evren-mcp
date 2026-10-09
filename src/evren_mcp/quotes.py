@@ -58,14 +58,19 @@ class QuoteBook:
         for k in [k for k, (t, _) in self._recent.items() if t + self.ttl_s <= now]:
             del self._recent[k]
 
-    def add(self, project_id: str, body: dict, estimated_cr: float,
-            worst_cr: float | None = None) -> Quote:
+    def add(self, project_id: str, body: dict, estimated_cr: float, worst_cr: float | None = None) -> Quote:
         with self._lock:
             self._purge()
             frozen = copy.deepcopy(body)
-            q = Quote(id=f"T-{secrets.token_hex(3).upper()}", project_id=project_id, body=frozen,
-                      fingerprint=fingerprint(frozen), estimated_cr=estimated_cr, worst_cr=worst_cr,
-                      expires_at=self._clock() + self.ttl_s)
+            q = Quote(
+                id=f"T-{secrets.token_hex(3).upper()}",
+                project_id=project_id,
+                body=frozen,
+                fingerprint=fingerprint(frozen),
+                estimated_cr=estimated_cr,
+                worst_cr=worst_cr,
+                expires_at=self._clock() + self.ttl_s,
+            )
             self._quotes[q.id] = q
             return q
 
@@ -83,11 +88,15 @@ class QuoteBook:
         with self._lock:
             q = self._quotes.pop((quote_id or "").strip(), None)
         if q is None:
-            raise EvrenError(f"Teklif bulunamadı: '{quote_id}'. Teklifler tek kullanımlık ve "
-                             "sunucu yeniden başlayınca düşer; estimate_training ile yeni teklif al.")
+            raise EvrenError(
+                f"Teklif bulunamadı: '{quote_id}'. Teklifler tek kullanımlık ve "
+                "sunucu yeniden başlayınca düşer; estimate_training ile yeni teklif al."
+            )
         if q.expires_at <= self._clock():
-            raise EvrenError(f"Teklifin süresi geçti ({int(self.ttl_s // 60)} dk). "
-                             "Fiyat değişmiş olabilir; estimate_training ile yeni teklif al.")
+            raise EvrenError(
+                f"Teklifin süresi geçti ({int(self.ttl_s // 60)} dk). "
+                "Fiyat değişmiş olabilir; estimate_training ile yeni teklif al."
+            )
         if fingerprint(q.body) != q.fingerprint:
             raise EvrenError("Teklif bozulmuş; güvenlik için kullanılmadı. Yeni teklif al.")
         return q
@@ -95,5 +104,6 @@ class QuoteBook:
     def pending_total(self) -> float:
         with self._lock:
             self._purge()
-            return (sum(q.estimated_cr for q in self._quotes.values())
-                    + sum(a for _, a in self._recent.values()))
+            return sum(q.estimated_cr for q in self._quotes.values()) + sum(
+                a for _, a in self._recent.values()
+            )
