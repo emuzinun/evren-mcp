@@ -1,8 +1,11 @@
 # evren-mcp — Tasarım
 
-Tarih: 06.10.2026 · Durum: kullanıcı onayı bekliyor
-Yer: `<repo>` (yeni repo; GitHub'da gizli başlar, olgunlaşınca
-açılır — karar kullanıcının). Bu belge repo kurulunca oraya taşınır.
+Tarih: 06.10.2026 · Durum: uygulandı (0.1.0); 09.10.2026'da yayın öncesi
+güncellendi.
+
+Kaynak etiketleri: `[ölçüldü tarih]` gerçek platformda ölçüldü
+(`docs/canli-dogrulama.md`); `[yazarın ölçümleri]` yazarın platform ölçümlerini
+tuttuğu gizli çalışma deposundaki kayıt; `[belge]` resmî belgeden.
 
 ## 1. Amaç
 
@@ -10,8 +13,8 @@ Claude Code'dan EVREN platformunda model eğitmek, ölçmek ve hesabı izlemek:
 "bu veri setinde küçük bir model eğit, kaça mal olur?" denince ajan maliyeti
 gösterir, onay alır, eğitimi başlatır, sonucu ve puan farkını getirir.
 
-**Kimin için:** önce proje sahibi; sonra GitHub'da EVREN kullanıcılarına açık
-kaynak.
+**Kimin için:** kendi Platform anahtarıyla çalışan EVREN kullanıcıları (açık
+kaynak, MIT).
 
 **Başarı ölçütü:**
 - Okuma araçları Claude Code'da çalışıyor (setler, kredi, puan, eğitim durumu).
@@ -21,7 +24,7 @@ kaynak.
   açıklanıyor; aynı eğitim iki kez başlatılmıyor.
 
 **Neden ayrı bir şey:** resmî `evren-sdk` 0.9.2 eğitim, ölçüm, sürüm, kredi
-defteri ve sıralama içermiyor `[ölçüldü 05.10, arastirma-20261005.md]`.
+defteri ve sıralama içermiyor `[ölçüldü 05.10]`.
 Roboflow ve Hugging Face MCP sunucularında eğitimden önce maliyet gösterip onay
 isteyen mekanizma yok `[belge, 06.10]` — fark bu.
 
@@ -44,7 +47,8 @@ pakete taşınıp düzenlenir; o betiklere çalışma zamanında bağımlılık 
 Elenenler: TypeScript (her şeyi yeniden yazmak, aynı hataları yeniden yaşamak),
 ölçüm betiklerini çağıran ince sarmalayıcı (yayınlanamaz).
 
-Kurulum hedefi: geliştirmede proje `.mcp.json`; yayında `uvx evren-mcp`.
+Kurulum: `uvx --from git+https://github.com/emuzinun/evren-mcp evren-mcp`;
+geliştirmede `uv run --directory <repo> evren-mcp`.
 
 ## 4. Yapı
 
@@ -81,15 +85,16 @@ Ad İngilizce, açıklama ve dönen metin Türkçe.
 | `get_training` | iş kimliği | durum, metrikler, maliyet; hata varsa açıklama |
 | `estimate_training` | sürüm kimliği, mimari, epoch, batch, imgsz, başlangıç modeli? | tahmini CR, süre, **teklif numarası** |
 | `download_model` | model sürüm kimliği | indirilen dosyanın yolu |
+| `check_dataset_zip` | zip yolu | yerel kontrol raporu; platforma istek gitmez |
 
 **Kredi harcayan / kayıt oluşturan** (her biri Claude Code izin sorusundan geçer)
 
 | Araç | Girdi | Ek kapı |
 |---|---|---|
 | `start_training` | teklif numarası | teklif geçerli, parmak izi aynı, tutar tavan altı |
-| `stop_training` | iş kimliği | yalnız süren iş; `POST /training/jobs/{id}/stop` |
+| `stop_training` | iş kimliği | yalnız süren iş; `POST /training/jobs/{id}/stop`; istemciye geri alınamaz (`destructiveHint`) bildirilir |
 | `evaluate_model` | model sürümü, set sürümü, bölme | günlük tavan; platformda bedava tahmini yok (çağrı başı ~0,03–0,04 CR `[ölçüldü 29.09]`) |
-| `upload_dataset` | zip yolu, set adı | yerel ön kontrol; set her zaman `private` |
+| `upload_dataset` | zip yolu, set adı | yerel ön kontrol tekrar koşar; set her zaman `private`. Kuru kontrol ayrı araçta: ona verilen kalıcı izin gerçek yüklemeyi kapsamaz |
 
 **Veri sürümü sabitlenir:** eğitim ve tahmin yalnız `dataset_version_id` ile
 kurulur. Yalnız set verilirse platform en yeni sürümü sessizce seçiyor
@@ -97,7 +102,7 @@ kurulur. Yalnız set verilirse platform en yeni sürümü sessizce seçiyor
 
 **Hazır akışlar (MCP prompts):** `/evren:egit` (set seç → tahmin → onay →
 başlat → izle → puan farkı), `/evren:durum` (bakiye, puan, süren işler).
-Claude Code'daki tam komut adı ilk adımda doğrulanır.
+Claude Code'daki tam komut adı henüz ölçülmedi.
 
 **Kaynaklar:** güncel kazanç kuralları (`/billing/earning/overview`), yerel
 eğitim günlüğü.
@@ -115,12 +120,15 @@ eğitim günlüğü.
 4. `POST /training/jobs`; iş günlüğe yazılır. Bitişte gerçek maliyet, metrik
    ve öncesi/sonrası puan günlüğe eklenir.
 
-**Bugünkü harcama:** platform kredi defterinde bugünün (UTC) `HOLD` ve
-`SETTLE` tutarları eksi `RELEASE` iadeleri. Yerel tahmin kullanılmaz.
+**Bugünkü harcama:** platform kredi defterinde bugünün (UTC) borç satırları
+(eksi tutar); artı tutar yalnız bugünkü bir borçla aynı `reference_id`'yi
+taşıyorsa düşülür, önceki günlerin iadeleri bugünü silmez (`account.today_spend`).
+Yerel tahmin kullanılmaz; şüphede fazla sayılır.
 
-**Elicitation:** sunucunun kullanıcıya doğrudan onay sorması protokolde var,
-Claude Code desteği belgede doğrulanamadı `[06.10]`. Tasarım ona dayanmaz;
-ilk adımda denenir, çalışıyorsa 2. adıma ek katman olarak girer.
+**Elicitation:** sunucunun kullanıcıya doğrudan onay sorması protokolde var;
+Claude Code 2.1.295 bu yeteneği bildiriyor `[ölçüldü 09.10.2026]`. Tasarım
+ona dayanmaz (her istemci desteklemez); ileride 2. adıma ek katman olarak
+girebilir.
 
 ## 7. Hata durumları
 
@@ -130,18 +138,20 @@ ilk adımda denenir, çalışıyorsa 2. adıma ek katman olarak girer.
 | POST/PATCH 5xx | Tekrar yok. `start_training`'de iş listesi okunup iş oluşmuş mu bakılır (çift ücret önlenir) |
 | 429 | Gövdedeki `resets_at` ya da `Retry-After` kadar bekleme |
 | 403 `terms_not_accepted` | Durur; şart onayı kullanıcıya bırakılır |
-| İş `FAILED` (`DISK_FULL`, `INFRA`) | Türkçe açıklama + defterden `RELEASE` iadesi doğrulanır |
+| İş `FAILED` (`DISK_FULL`, `INFRA`) | Türkçe açıklama; iadenin defterden doğrulanması henüz yok (bilinen sınır, `STATUS.md`) |
 | JSON olmayan gövde | Okumada yeniden deneme, yazmada durum kontrolü |
 
-Kaynak: yazarın platform sorun kaydı #38, #39; `train_run.py`
+Kaynak: `[yazarın ölçümleri]` platform sorunları #38, #39; `train_run.py`
 `getir()` (21.09 bozuk yoklama dersi).
 
 ## 8. Güvenlik
 
 - Anahtar yalnız ortam değişkeninden; maskelenmeden hiçbir yere yazılmaz.
 - Kimlikler UUID biçim denetiminden geçer; adrese ham metin eklenmez.
+- Anahtar yalnız `https://` ile API alan adına gider; `EVREN_BASE_URL` `https`
+  değilse sunucu başlamaz. Tavanlarda `nan`/`inf` reddedilir.
 - `download_model` yalnız `EVREN_DOWNLOAD_DIR` altına yazar; var olan dosyanın
-  üstüne yazmaz.
+  üstüne yazmaz (eşzamanlı indirmede de: `os.link` hedef varsa reddeder).
 - `upload_dataset`: `../` ve mutlak yol içeren girdileri, `EVREN_MAX_UPLOAD_MB`
   aşan zip'i reddeder; yapı (`images/`, `labels/`, `data.yaml`), macOS `._`
   dosyaları ve zip içi kopyalar (SHA-256) kontrol edilir.
@@ -160,20 +170,19 @@ betiklerindeki test kalıbı). Ağ yok.
 - Anahtar: araç çıktılarında, günlükte, hata mesajında görünmez.
 - MCP katmanı: bellek içi istemciyle araç listesi ve örnek çağrılar.
 
-Canlı deneme: okuma araçları serbest; ilk gerçek eğitim disk sorunu (#38)
-düzelince kullanıcı onayıyla, 5 epoch ~0,5 CR.
+Canlı deneme: okuma araçları serbest; kredi harcayan deneme kullanıcı
+onayıyla. İlk gerçek eğitim 06.10.2026'da yapıldı (`docs/canli-dogrulama.md`).
 
 ## 10. Teslim sırası
 
-1. İskelet, `platform.py`, okuma araçları, `.mcp.json` ile Claude Code'a
-   bağlama; elicitation ve `/` komut adı denemesi.
-2. Tahmin, teklif, tavan, başlat/durdur, günlük, hata açıklamaları.
-3. Ölçüm, yükleme, indirme.
-4. Hazır akışlar, kaynaklar, iki dilli README.
-
-Her adım çalışan bir sürümle biter.
+1. İskelet, `platform.py`, okuma araçları, Claude Code'a bağlama. ✅
+2. Tahmin, teklif, tavan, başlat/durdur, günlük, hata açıklamaları. ✅
+3. Ölçüm, yükleme, indirme. ✅
+4. Hazır akışlar, kaynaklar, iki dilli README. ✅
+5. Yayın hazırlığı: lisans, CI, lint/tip denetimi, ertelenen inceleme
+   bulguları. ✅
 
 ## 11. Dil
 
-Kullanıcıya dönen metin ve hata açıklamaları Türkçe; README Türkçe +
-İngilizce; kod adları İngilizce, yorumlar ve commit mesajları Türkçe.
+Kullanıcıya dönen metin ve hata açıklamaları Türkçe; README İngilizce
+(`README.md`) + Türkçe (`README.tr.md`); kod adları İngilizce, yorumlar ve commit mesajları Türkçe.
