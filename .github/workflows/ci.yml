@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.3.0 # v8 sonrasında kısa etiket (v10) yok; dependabot günceller
         with:
           python-version: "3.13"
           enable-cache: true
@@ -41,7 +41,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.3.0
         with:
           python-version: ${{ matrix.python }}
           enable-cache: true
@@ -75,7 +75,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.3.0
         with:
           enable-cache: true
       - run: uv build
