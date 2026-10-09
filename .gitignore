@@ -22,3 +22,6 @@ htmlcov/
 
 # Model ağırlıkları
 *.pt
+
+# Veri seti zip'leri: yanlışlıkla `git add .` ile açık repoya gitmesin
+*.zip
