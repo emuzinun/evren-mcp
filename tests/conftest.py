@@ -1,6 +1,9 @@
+import dataclasses
+
 import pytest
 
 from evren_mcp.config import load_settings
+from tests.fakes import FakeEvren
 
 
 @pytest.fixture
@@ -12,11 +15,6 @@ def settings(tmp_path):
             "EVREN_DOWNLOAD_DIR": str(tmp_path / "modeller"),
         }
     )
-
-
-import dataclasses
-
-from tests.fakes import FakeEvren
 
 
 @pytest.fixture

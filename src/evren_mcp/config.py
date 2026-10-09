@@ -6,10 +6,11 @@ Süreç ortamındaki değer dosyadakini ezer.
 
 from __future__ import annotations
 
+import math
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Mapping
 
 from dotenv import dotenv_values
 
@@ -43,7 +44,7 @@ def _positive(env: Mapping[str, str], name: str, default: float) -> float:
         value = float(raw)
     except ValueError:
         raise EvrenError(f"{name} sayı olmalı, '{raw}' verildi.") from None
-    if value <= 0:
+    if not math.isfinite(value) or value <= 0:
         raise EvrenError(f"{name} sıfırdan büyük olmalı, '{raw}' verildi.")
     return value
 
@@ -64,10 +65,16 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
             "EVREN_PLATFORM_API_KEY tanımlı değil. Anahtarı .env dosyasına yaz "
             "(yerini EVREN_ENV_FILE ile değiştirebilirsin)."
         )
+    base_url = (env.get("EVREN_BASE_URL") or DEFAULT_BASE_URL).strip().rstrip("/")
+    if not base_url.startswith("https://"):
+        raise EvrenError(
+            f"EVREN_BASE_URL https:// ile başlamalı; anahtar şifresiz bağlantıyla "
+            f"gönderilmez. Verilen: '{base_url}'."
+        )
     defaults = Settings(api_key=key)
     return Settings(
         api_key=key,
-        base_url=(env.get("EVREN_BASE_URL") or DEFAULT_BASE_URL).rstrip("/"),
+        base_url=base_url,
         project_id=(env.get("EVREN_PROJECT_ID") or "").strip() or None,
         max_job_cr=_positive(env, "EVREN_MAX_JOB_CR", defaults.max_job_cr),
         max_daily_cr=_positive(env, "EVREN_MAX_DAILY_CR", defaults.max_daily_cr),

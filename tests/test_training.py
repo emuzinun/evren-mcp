@@ -1,10 +1,12 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
+import httpx
 import pytest
 
 from evren_mcp.errors import EvrenError
+from evren_mcp.journal import Journal
 from evren_mcp.quotes import QuoteBook
-from evren_mcp.training import build_body, estimate
+from evren_mcp.training import build_body, estimate, list_jobs, start, status, stop
 from tests.fakes import envelope
 
 VER = "00000000-0000-4000-8000-000000000002"
@@ -89,11 +91,6 @@ def test_estimate_over_job_cap_gives_no_quote(fake, platform, fast_settings):
     assert qb.pending_total() == 0
 
 
-import httpx
-
-from evren_mcp.journal import Journal
-from evren_mcp.training import list_jobs, start, status, stop
-
 JOB = "00000000-0000-4000-8000-000000000001"
 
 
@@ -123,15 +120,7 @@ def test_start_rechecks_budget_at_start(fake, platform, fast_settings):
         "/billing/ledger",
         (
             200,
-            {
-                "items": [
-                    {
-                        "created_at": datetime.now(timezone.utc).isoformat(),
-                        "tx_type": "HOLD",
-                        "amount": "-19.9",
-                    }
-                ]
-            },
+            {"items": [{"created_at": datetime.now(UTC).isoformat(), "tx_type": "HOLD", "amount": "-19.9"}]},
         ),
         (200, {"items": []}),
     )
@@ -157,7 +146,7 @@ def test_start_ambiguous_finds_created_job_without_resending(fake, platform, fas
                         "status": "EXPORTING",
                         "architecture": "yolov8n",
                         "dataset_version_id": VER,
-                        "created_at": datetime.now(timezone.utc).isoformat(),
+                        "created_at": datetime.now(UTC).isoformat(),
                     }
                 ]
             },
@@ -295,6 +284,7 @@ def test_parallel_starts_cannot_both_pass(fake, platform, fast_settings, monkeyp
     yoksa ikisi de teklifini almış, ikisi de 0 harcama görür ve ikisi de geçer.
     Kilit varsa ikincisi bariyere hiç ulaşamaz; bariyer zaman aşımıyla çözülür.
     """
+    import contextlib
     import dataclasses
     import threading
 
@@ -306,10 +296,8 @@ def test_parallel_starts_cannot_both_pass(fake, platform, fast_settings, monkeyp
     bariyer = threading.Barrier(2)
 
     def bekleyen_harcama(p, *a, **k):
-        try:
+        with contextlib.suppress(threading.BrokenBarrierError):
             bariyer.wait(timeout=0.5)
-        except threading.BrokenBarrierError:
-            pass
         return 0.0
 
     monkeypatch.setattr(training_mod, "today_spend", bekleyen_harcama)
@@ -345,3 +333,50 @@ def test_job_cap_uses_worst_case(fake, platform, fast_settings):
     with pytest.raises(EvrenError, match="en kötü"):
         estimate(platform, qb, fast_settings, **kw())
     assert qb.pending_total() == 0
+
+
+def test_start_ambiguous_skips_job_with_bad_timestamp(fake, platform, fast_settings):
+    """Ertelenen bulgu: listedeki bozuk created_at belirsiz yanıt çözümünü düşürmemeli."""
+    fake.on("GET", "/billing/ledger", (200, {"items": []}))
+    fake.on("GET", "/auth/me", me(1263))
+    fake.on("POST", "/training/jobs", (500, {"success": False}))
+    fake.on(
+        "GET",
+        "/training/jobs",
+        (
+            200,
+            {
+                "items": [
+                    {
+                        "id": "eski",
+                        "architecture": "yolov8n",
+                        "dataset_version_id": VER,
+                        "created_at": "bozuk",
+                    },
+                    {
+                        "id": JOB,
+                        "status": "EXPORTING",
+                        "architecture": "yolov8n",
+                        "dataset_version_id": VER,
+                        "created_at": datetime.now(UTC).isoformat(),
+                    },
+                ]
+            },
+        ),
+    )
+    qb = QuoteBook()
+    out = start(platform, qb, fast_settings, Journal(fast_settings.journal_path), quote_for(qb).id)
+    assert out["is_id"] == JOB
+
+
+def test_start_journal_failure_still_returns_job_id(fake, platform, fast_settings, tmp_path):
+    """Ertelenen bulgu: iş başladıktan sonra günlük yazılamazsa iş kimliği kaybolmamalı."""
+    fake.on("GET", "/billing/ledger", (200, {"items": []}))
+    fake.on("GET", "/auth/me", me(1263))
+    fake.on("POST", "/training/jobs", (201, envelope({"id": JOB, "status": "EXPORTING"})))
+    engel = tmp_path / "dosya"
+    engel.write_text("x", encoding="utf-8")
+    qb = QuoteBook()
+    out = start(platform, qb, fast_settings, Journal(engel / "journal.jsonl"), quote_for(qb).id)
+    assert out["is_id"] == JOB
+    assert "günlüğe yazılamadı" in out["uyari"]

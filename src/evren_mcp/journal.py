@@ -5,7 +5,7 @@ buraya düşer."""
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 
@@ -13,11 +13,16 @@ class Journal:
     def __init__(self, path: Path) -> None:
         self.path = path
 
-    def append(self, event: str, **data) -> dict:
-        rec = {"zaman": datetime.now(timezone.utc).isoformat(timespec="seconds"), "olay": event, **data}
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self.path.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    def append(self, event: str, **data) -> dict | None:
+        """Kaydı yazar; yazılamazsa (disk, izin) `None` döner, istisna fırlatmaz —
+        platformda başlamış bir işin kimliği günlük hatası yüzünden kaybolmasın."""
+        rec = {"zaman": datetime.now(UTC).isoformat(timespec="seconds"), "olay": event, **data}
+        try:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            with self.path.open("a", encoding="utf-8") as f:
+                f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        except OSError:
+            return None
         return rec
 
     def read(self, limit: int = 50) -> list[dict]:

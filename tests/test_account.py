@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -6,7 +6,7 @@ from evren_mcp.account import get_credits, get_standing, today_spend
 from evren_mcp.errors import EvrenError
 from tests.fakes import envelope
 
-NOW = datetime(2026, 10, 6, 12, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 10, 6, 12, 0, tzinfo=UTC)
 
 
 def tx(hours_ago: float, kind: str, amount: str, ref: str | None = None, rid: str | None = None) -> dict:
@@ -140,3 +140,14 @@ def test_today_spend_caches_and_reads_only_new_rows(fake, platform):
     assert today_spend(platform, now=NOW) == pytest.approx(3.0)
     assert today_spend(platform, now=NOW) == pytest.approx(3.5)
     assert len(fake.calls("GET", "/billing/ledger")) == 3
+
+
+def test_today_spend_bad_timestamp_fails_closed(fake, platform):
+    """Ertelenen bulgu: bozuk created_at genel bir istisnaya değil, güvenli Türkçe hataya döner."""
+    fake.on(
+        "GET",
+        "/billing/ledger",
+        (200, {"items": [{"id": "r1", "created_at": "bozuk", "tx_type": "HOLD", "amount": "-1"}]}),
+    )
+    with pytest.raises(EvrenError, match="defter"):
+        today_spend(platform, now=NOW)

@@ -5,7 +5,10 @@ def test_disk_full_job_is_platform_side_and_mentions_refund():
     job = {
         "status": "FAILED",
         "error_category": "INFRA",
-        "error_message": "HPC dosya yazimi hatasi: [Errno 28] No space left on device: '/tmp/x'\n--- traceback ---\nFile \"/app/app/workers/tasks_training.py\"",
+        "error_message": (
+            "HPC dosya yazimi hatasi: [Errno 28] No space left on device: '/tmp/x'\n"
+            '--- traceback ---\nFile "/app/app/workers/tasks_training.py"'
+        ),
     }
     metin = explain_job(job)
     assert "disk" in metin.lower() and "iade" in metin

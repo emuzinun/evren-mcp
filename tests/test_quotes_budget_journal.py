@@ -62,8 +62,9 @@ def test_budget_job_cap():
 def test_budget_daily_cap_counts_pending():
     with pytest.raises(EvrenError, match="Günlük tavan"):
         budget.check(3.0, max_job=5, max_daily=20, spent_today=18, pending=0)
-    with pytest.raises(EvrenError, match="Günlük tavan"):
+    with pytest.raises(EvrenError, match="Günlük tavan") as e:
         budget.check(1.0, max_job=5, max_daily=20, spent_today=10, pending=9.5)
+    assert "10 dk" in str(e.value)  # bekleyen teklif neden sayılıyor, kullanıcıya söylenir
     budget.check(1.0, max_job=5, max_daily=20, spent_today=10, pending=9.0)
 
 

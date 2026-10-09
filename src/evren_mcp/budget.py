@@ -34,5 +34,6 @@ def check(
         raise EvrenError(
             f"Günlük tavan aşılır: bugün {spent_today:.2f} CR harcandı, bekleyen teklifler "
             f"{pending:.2f} CR, bu iş {amount:.2f} CR; tavan {max_daily:.2f} CR (UTC günü, "
-            "TR saatiyle 03:00'te sıfırlanır)."
+            "TR saatiyle 03:00'te sıfırlanır). Bekleyen: alınıp kullanılmamış teklifler ve "
+            "defterde henüz görünmeyen yeni işler; 10 dk sonra düşer."
         )

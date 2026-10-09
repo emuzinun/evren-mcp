@@ -81,17 +81,18 @@ def precheck(zip_path: Path, max_mb: float) -> dict:
     }
 
 
-def upload(
-    p: Platform, settings: Settings, *, zip_path: str, name: str, description: str = "", dry_run: bool = True
-) -> dict:
+def check(settings: Settings, *, zip_path: str) -> dict:
+    """Yalnız yerel kontrol; platforma istek gitmez."""
+    return {
+        "kontrol": precheck(Path(zip_path), settings.max_upload_mb),
+        "not": "Yüklemek için raporu kullanıcıya göster, onay alırsan upload_dataset çağır. "
+        "Set gizli (private) oluşturulur.",
+    }
+
+
+def upload(p: Platform, settings: Settings, *, zip_path: str, name: str, description: str = "") -> dict:
     path = Path(zip_path)
     report = precheck(path, settings.max_upload_mb)
-    if dry_run:
-        return {
-            "kontrol": report,
-            "not": "Yüklemek için kullanıcı onayıyla dry_run=false ile tekrar çağır. "
-            "Set gizli (private) oluşturulur.",
-        }
     name = (name or "").strip()
     if not 3 <= len(name) <= 100:
         raise EvrenError("Set adı 3–100 karakter olmalı.")

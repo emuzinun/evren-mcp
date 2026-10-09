@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from . import budget
 from .account import get_points, today_spend
@@ -96,10 +96,12 @@ def estimate(p: Platform, quotes: QuoteBook, settings: Settings, **build_kw) -> 
 
 def _find_created(p: Platform, body: dict, since: datetime) -> dict | None:
     for j in as_list(p.get("/training/jobs", params={"limit": 10})):
-        created = j.get("created_at")
+        try:
+            created = parse_ts(str(j.get("created_at")))
+        except ValueError:
+            continue  # tarihi okunamayan iş bizim az önce başlattığımız iş sayılmaz
         if (
-            created
-            and parse_ts(created) >= since - timedelta(seconds=60)
+            created >= since - timedelta(seconds=60)
             and j.get("dataset_version_id") == body["dataset_version_id"]
             and j.get("architecture") == body["architecture"]
         ):
@@ -149,7 +151,7 @@ def start(p: Platform, quotes: QuoteBook, settings: Settings, journal: Journal, 
     except EvrenError:
         quotes.cancel_spend(token)
         raise
-    sent_at = datetime.now(timezone.utc)
+    sent_at = datetime.now(UTC)
     try:
         job = p.post("/training/jobs", params={"project_id": q.project_id}, json=q.body)
     except PlatformError as e:
@@ -159,7 +161,7 @@ def start(p: Platform, quotes: QuoteBook, settings: Settings, journal: Journal, 
         job = _resolve_ambiguous(p, journal, q, sent_at)
     if not isinstance(job, dict) or not job.get("id"):
         raise EvrenError("Platform eğitim kaydını döndürmedi; list_trainings ile kontrol et.")
-    journal.append(
+    logged = journal.append(
         "egitim_basladi",
         is_id=job["id"],
         teklif=q.id,
@@ -167,13 +169,19 @@ def start(p: Platform, quotes: QuoteBook, settings: Settings, journal: Journal, 
         tahmini_cr=q.estimated_cr,
         puan_once=before,
     )
-    return {
+    out = {
         "is_id": job["id"],
         "durum": job.get("status"),
         "durum_tr": STATUS_TR.get(str(job.get("status")), job.get("status")),
         "tahmini_cr": q.estimated_cr,
         "not": "İlerlemeyi get_training ile izle; küçük bir iş birkaç dakika sürer.",
     }
+    if logged is None:
+        out["uyari"] = (
+            f"Eğitim başladı ama yerel günlüğe yazılamadı ({journal.path}); "
+            "bitişteki puan farkı hesaplanamayacak. İş kimliğini not et."
+        )
+    return out
 
 
 def _summary(j: dict) -> dict:

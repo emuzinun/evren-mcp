@@ -151,3 +151,28 @@ def test_download_transport_error_is_turkish_and_leaves_no_file(fake, platform, 
     with pytest.raises(PlatformError, match="bağlantı"):
         platform.download("/api/v1/files/z.pt", tmp_path / "z.pt")
     assert not list(tmp_path.iterdir())
+
+
+def test_key_not_sent_over_plain_http_to_api_host(fake, platform, tmp_path):
+    """Ertelenen bulgu: aynı alan adı ama http:// olan indirme bağlantısına anahtar gitmemeli."""
+    seen = {}
+
+    def dosya(request):
+        seen["anahtar"] = request.headers.get("X-API-Key")
+        return httpx.Response(200, content=b"agirlik")
+
+    fake.on("GET", "/api/v1/files/x.pt", dosya)
+    fake.on("GET", "/files/x.pt", dosya)
+    platform.download("http://api.ssyz.org.tr/api/v1/files/x.pt", tmp_path / "a.pt")
+    assert seen["anahtar"] is None
+
+
+def test_429_gives_up_after_max_waits(fake, platform):
+    """Sürekli 429'da en çok MAX_429_WAITS kez beklenir, sonra Türkçe hata döner."""
+    from evren_mcp.platform import MAX_429_WAITS
+
+    fake.on("POST", "/training/jobs", lambda r: httpx.Response(429, headers={"Retry-After": "2"}, json={}))
+    with pytest.raises(EvrenError, match="hız sınırı"):
+        platform.post("/training/jobs", json={})
+    assert len(fake.calls("POST", "/training/jobs")) == MAX_429_WAITS + 1
+    assert fake.sleeps == [2.0] * MAX_429_WAITS

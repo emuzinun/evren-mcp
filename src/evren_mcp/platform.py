@@ -1,7 +1,7 @@
 """Platformla konuşan tek kapı.
 
-- Anahtar yalnız API alan adına giden isteğe eklenir (indirme bağlantısı
-  başka bir alan adına giderse anahtar gitmez).
+- Anahtar yalnız API alan adına https ile giden isteğe eklenir (indirme
+  bağlantısı başka bir alan adına ya da http'ye giderse anahtar gitmez).
 - GET: 5xx, bağlantı hatası ve JSON olmayan gövde yeniden denenir. Platform
   GET'lerin ~4'te 1'ine 500 döndü [ölçüldü 05.10.2026].
 - POST: 5xx tekrar edilmez, `code="ambiguous"` ile yükselir — 500 dönen
@@ -14,11 +14,14 @@
 from __future__ import annotations
 
 import json as jsonlib
+import os
 import re
+import secrets
 import time
-from datetime import datetime, timezone
+from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 from urllib.parse import urljoin, urlparse
 
 import httpx
@@ -57,7 +60,19 @@ def as_list(data: Any) -> list:
 
 def parse_ts(s: str) -> datetime:
     dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
-    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
+
+
+def _link_no_overwrite(src: Path, dest: Path) -> None:
+    try:
+        os.link(src, dest)
+    except FileExistsError:
+        raise EvrenError(f"{dest} zaten var; üstüne yazılmadı.") from None
+    except OSError:
+        # Sabit bağlantı desteklemeyen dosya sistemi: kontrol + taşıma.
+        if dest.exists():
+            raise EvrenError(f"{dest} zaten var; üstüne yazılmadı.") from None
+        src.replace(dest)
 
 
 class Platform:
@@ -81,7 +96,8 @@ class Platform:
         return self.settings.base_url + path
 
     def _headers(self, url: str) -> dict[str, str]:
-        return {"X-API-Key": self.settings.api_key} if urlparse(url).netloc == self._host else {}
+        u = urlparse(url)
+        return {"X-API-Key": self.settings.api_key} if u.scheme == "https" and u.netloc == self._host else {}
 
     def _retry_after(self, r: httpx.Response) -> float:
         raw = r.headers.get("Retry-After")
@@ -90,7 +106,7 @@ class Platform:
         try:
             resets = r.json().get("error", {}).get("details", {}).get("resets_at")
             if resets:
-                kalan = (parse_ts(resets) - datetime.now(timezone.utc)).total_seconds()
+                kalan = (parse_ts(resets) - datetime.now(UTC)).total_seconds()
                 return max(1.0, min(60.0, kalan))
         except (ValueError, AttributeError):
             pass
@@ -98,15 +114,14 @@ class Platform:
 
     def _request(self, method: str, path: str, **kw: Any) -> httpx.Response:
         url = self._url(path)
-        r: httpx.Response | None = None
-        for _ in range(MAX_429_WAITS + 1):
+        waits = 0
+        while True:
             self._limiter.acquire()
             r = self.http.request(method, url, headers=self._headers(url), **kw)
-            if r.status_code != 429:
+            if r.status_code != 429 or waits == MAX_429_WAITS:
                 return r
             self._sleep(self._retry_after(r))
-        assert r is not None
-        return r
+            waits += 1
 
     def _error(self, r: httpx.Response) -> PlatformError:
         code, message = None, r.text[:300]
@@ -205,25 +220,27 @@ class Platform:
         self._limiter.acquire()
         events: list[dict] = []
         try:
-            with file_path.open("rb") as f:
-                with self.http.stream(
+            with (
+                file_path.open("rb") as f,
+                self.http.stream(
                     "POST",
                     url,
                     headers=self._headers(url),
                     timeout=timeout,
                     files={"file": (file_path.name, f, "application/zip")},
-                ) as r:
-                    if r.status_code != 200:
-                        r.read()
-                        raise self._error(r)
-                    for line in r.iter_lines():
-                        line = line.strip()
-                        if not line:
-                            continue
-                        try:
-                            events.append(jsonlib.loads(line))
-                        except ValueError:
-                            continue
+                ) as r,
+            ):
+                if r.status_code != 200:
+                    r.read()
+                    raise self._error(r)
+                for line in r.iter_lines():
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        events.append(jsonlib.loads(line))
+                    except ValueError:
+                        continue
         except httpx.TransportError:
             raise PlatformError(
                 "Yükleme sırasında bağlantı koptu; içe aktarmanın platformda "
@@ -233,9 +250,13 @@ class Platform:
         return events
 
     def download(self, url: str, dest: Path) -> int:
-        """Dosyayı `.part`'a indirir, bitince yerine taşır; hata olursa iz bırakmaz."""
+        """Dosyayı geçici `.part`'a indirir, bitince yerine bağlar; hata olursa iz bırakmaz.
+
+        Var olan dosyanın üstüne yazılmaz: eşzamanlı iki indirme varlık kontrolünü
+        birlikte geçse bile `os.link` hedef varsa reddeder.
+        """
         full = self._url(url)
-        part = dest.with_name(dest.name + ".part")
+        part = dest.with_name(f"{dest.name}.{secrets.token_hex(4)}.part")
         dest.parent.mkdir(parents=True, exist_ok=True)
         self._limiter.acquire()
         size = 0
@@ -248,7 +269,7 @@ class Platform:
                     for chunk in r.iter_bytes():
                         out.write(chunk)
                         size += len(chunk)
-            part.replace(dest)
+            _link_no_overwrite(part, dest)
         except httpx.TransportError:
             raise PlatformError(
                 "İndirme sırasında bağlantı koptu; dosya yazılmadı. Biraz sonra tekrar dene.",

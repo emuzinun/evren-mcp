@@ -5,7 +5,7 @@ import httpx
 import pytest
 
 from evren_mcp.errors import EvrenError
-from evren_mcp.upload import precheck, upload
+from evren_mcp.upload import check, precheck, upload
 from tests.fakes import envelope
 
 DS = "00000000-0000-4000-8000-000000000005"
@@ -50,7 +50,7 @@ def test_precheck_rejects_macos_files(tmp_path):
 
 
 def test_precheck_requires_yaml_and_images(tmp_path):
-    with pytest.raises(EvrenError, match="data.yaml"):
+    with pytest.raises(EvrenError, match=r"data\.yaml"):
         precheck(make_zip(tmp_path / "a.zip", {"images/train/a.jpg": b"A"}), 100)
     with pytest.raises(EvrenError, match="görsel"):
         precheck(make_zip(tmp_path / "b.zip", {"data.yaml": b"x"}), 100)
@@ -72,9 +72,16 @@ def test_precheck_size_limit_and_bad_zip(tmp_path):
         precheck(junk, 100)
 
 
-def test_upload_dry_run_sends_nothing(fake, platform, fast_settings, tmp_path):
-    out = upload(platform, fast_settings, zip_path=str(make_zip(tmp_path / "a.zip", GOOD)), name="deneme")
-    assert "dry_run=false" in out["not"] and fake.requests == []
+def test_check_reports_and_points_to_upload(fast_settings, tmp_path):
+    out = check(fast_settings, zip_path=str(make_zip(tmp_path / "a.zip", GOOD)))
+    assert out["kontrol"]["gorsel"] == 2 and "upload_dataset" in out["not"]
+
+
+def test_upload_runs_precheck_before_sending(fake, platform, fast_settings, tmp_path):
+    bad = make_zip(tmp_path / "a.zip", {"images/a.jpg": b"A"})
+    with pytest.raises(EvrenError, match=r"data\.yaml"):
+        upload(platform, fast_settings, zip_path=str(bad), name="deneme")
+    assert fake.requests == []
 
 
 def test_upload_creates_private_set_and_imports(fake, platform, fast_settings, tmp_path):
@@ -84,13 +91,7 @@ def test_upload_creates_private_set_and_imports(fake, platform, fast_settings, t
         f"/datasets/{DS}/import",
         lambda r: httpx.Response(200, text='{"t":"h"}\n{"t":"d","created":2,"annotations":1}\n'),
     )
-    out = upload(
-        platform,
-        fast_settings,
-        zip_path=str(make_zip(tmp_path / "a.zip", GOOD)),
-        name="deneme",
-        dry_run=False,
-    )
+    out = upload(platform, fast_settings, zip_path=str(make_zip(tmp_path / "a.zip", GOOD)), name="deneme")
     assert out["set_id"] == DS and out["sonuc"]["created"] == 2
     assert b'"visibility":"private"' in fake.calls("POST", "/datasets")[0].content.replace(b" ", b"")
 
@@ -101,13 +102,7 @@ def test_upload_import_without_done_event_is_explained(fake, platform, fast_sett
         "POST", f"/datasets/{DS}/import", lambda r: httpx.Response(200, text='{"t":"e","error":"bozuk"}\n')
     )
     with pytest.raises(EvrenError, match=DS):
-        upload(
-            platform,
-            fast_settings,
-            zip_path=str(make_zip(tmp_path / "a.zip", GOOD)),
-            name="deneme",
-            dry_run=False,
-        )
+        upload(platform, fast_settings, zip_path=str(make_zip(tmp_path / "a.zip", GOOD)), name="deneme")
 
 
 def test_upload_import_transport_error_mentions_set_id(fake, platform, fast_settings, tmp_path):
@@ -119,10 +114,4 @@ def test_upload_import_transport_error_mentions_set_id(fake, platform, fast_sett
     fake.on("POST", "/datasets", (201, envelope({"id": DS})))
     fake.on("POST", f"/datasets/{DS}/import", kopuk)
     with pytest.raises(EvrenError, match=DS):
-        upload(
-            platform,
-            fast_settings,
-            zip_path=str(make_zip(tmp_path / "a.zip", GOOD)),
-            name="deneme",
-            dry_run=False,
-        )
+        upload(platform, fast_settings, zip_path=str(make_zip(tmp_path / "a.zip", GOOD)), name="deneme")

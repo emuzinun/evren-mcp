@@ -62,3 +62,18 @@ def test_masked_key_shows_only_last_four():
 def test_redact():
     assert redact("hata: gizli-anahtar geçersiz", "gizli-anahtar") == "hata: *** geçersiz"
     assert redact("metin", "") == "metin"
+
+
+@pytest.mark.parametrize("deger", ["nan", "inf", "-inf", "NaN"])
+def test_non_finite_cap_rejected(deger):
+    """Ertelenen bulgu: `nan` tavan bütün karşılaştırmaları yanlış yapıp tavanı kapatıyordu."""
+    with pytest.raises(EvrenError, match="EVREN_MAX_DAILY_CR"):
+        load_settings({"EVREN_PLATFORM_API_KEY": "abcd1234efgh", "EVREN_MAX_DAILY_CR": deger})
+
+
+def test_http_base_url_rejected():
+    """Ertelenen bulgu: anahtar şifresiz bağlantıyla gitmemeli."""
+    with pytest.raises(EvrenError, match="https"):
+        load_settings(
+            {"EVREN_PLATFORM_API_KEY": "abcd1234efgh", "EVREN_BASE_URL": "http://api.ssyz.org.tr/api/v1"}
+        )

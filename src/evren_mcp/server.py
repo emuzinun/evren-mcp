@@ -24,9 +24,11 @@ INSTRUCTIONS = (
     "Test bölmesi tek seferlik ölçülür. Silme, herkese açık yapma ve etiketleme bu "
     "sunucuda yok; kullanıcı panelde yapar."
 )
-RO = ToolAnnotations(readOnlyHint=True, openWorldHint=True)
-SPEND = ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=True)
-LOCAL = ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=True)
+RO = ToolAnnotations(read_only_hint=True, open_world_hint=True)
+LOCAL_RO = ToolAnnotations(read_only_hint=True, open_world_hint=False)
+SPEND = ToolAnnotations(read_only_hint=False, destructive_hint=False, open_world_hint=True)
+STOP = ToolAnnotations(read_only_hint=False, destructive_hint=True, open_world_hint=True)
+LOCAL = ToolAnnotations(read_only_hint=False, destructive_hint=False, open_world_hint=True)
 
 
 def _version() -> str:
@@ -139,7 +141,7 @@ def build_server(
 
     @srv.tool(
         name="stop_training",
-        annotations=SPEND,
+        annotations=STOP,
         description="Süren eğitimi durdurur (geri alınamaz; kullanılmayan kredi iade edilir).",
     )
     def stop_training(job_id: str) -> dict:
@@ -178,15 +180,22 @@ def build_server(
         return models.download_model(p, settings, model_version_id)
 
     @srv.tool(
+        name="check_dataset_zip",
+        annotations=LOCAL_RO,
+        description="Zip'i yüklemeden yerelde kontrol eder (yapı, güvensiz yol, kopya görsel). "
+        "Platforma istek gitmez.",
+    )
+    def check_dataset_zip(zip_path: str) -> dict:
+        return upload_mod.check(settings, zip_path=zip_path)
+
+    @srv.tool(
         name="upload_dataset",
         annotations=SPEND,
-        description="Zip'i yeni bir GİZLİ veri setine yükler. Önce dry_run=true (varsayılan) ile "
-        "kontrol raporu al, kullanıcı onaylarsa dry_run=false.",
+        description="Zip'i yeni bir GİZLİ veri setine yükler. Önce check_dataset_zip ile raporu "
+        "kullanıcıya göster; yalnız kullanıcı onaylarsa çağır.",
     )
-    def upload_dataset(zip_path: str, name: str, description: str = "", dry_run: bool = True) -> dict:
-        return upload_mod.upload(
-            p, settings, zip_path=zip_path, name=name, description=description, dry_run=dry_run
-        )
+    def upload_dataset(zip_path: str, name: str, description: str = "") -> dict:
+        return upload_mod.upload(p, settings, zip_path=zip_path, name=name, description=description)
 
     @srv.prompt(name="egit", description="Rehberli eğitim: set seç, maliyet gör, onayla, başlat, izle.")
     def egit_prompt(istek: str = "") -> str:

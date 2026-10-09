@@ -6,7 +6,8 @@ Her yol için yanıtlar sırayla tüketilir, sonuncusu tekrarlanır. Yanıt ya
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import httpx
 
@@ -26,7 +27,7 @@ class FakeEvren:
         self.requests: list[httpx.Request] = []
         self.sleeps: list[float] = []
 
-    def on(self, method: str, path: str, *responses: Response) -> "FakeEvren":
+    def on(self, method: str, path: str, *responses: Response) -> FakeEvren:
         self.routes[(method, path)] = list(responses)
         return self
 

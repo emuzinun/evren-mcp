@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from .errors import EvrenError
 from .platform import Platform, as_list, parse_ts
@@ -63,7 +63,14 @@ def _new_rows_today(p: Platform, start: datetime) -> list[dict]:
         for x in items:
             if cache["newest"] is not None and x.get("id") == cache["newest"]:
                 return rows
-            if parse_ts(str(x.get("created_at"))) < start:
+            try:
+                created = parse_ts(str(x.get("created_at")))
+            except ValueError:
+                raise EvrenError(
+                    "Kredi defterinde tarihi okunamayan satır var; güvenlik için kredi "
+                    "harcayan işlem yapılmadı."
+                ) from None
+            if created < start:
                 return rows
             rows.append(x)
         offset += len(items)
@@ -82,11 +89,11 @@ def today_spend(p: Platform, now: datetime | None = None) -> float:
     06.10 00:04'te eski işler için 1,60 CR `SYSTEM_GRANT` geldi [ölçüldü].
     Şüphede fazla sayılır (güvenli yön).
 
-    Defter yeniden eskiye sıralı [ölçüldü 05.10.2026]; başka bir anahtarın
-    günde ~1.300 LLM satırı var. Gün içinde okunan satırlar önbellekte tutulur,
+    Defter yeniden eskiye sıralı [ölçüldü 05.10.2026]; LLM kullanan bir
+    hesapta günde ~1.300 satır görüldü. Gün içinde okunan satırlar önbellekte tutulur,
     sonraki çağrı yalnız yeni satırları okur.
     """
-    now = now or datetime.now(timezone.utc)
+    now = now or datetime.now(UTC)
     start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     new = _new_rows_today(p, start)
     cache = p.ledger_cache
@@ -101,9 +108,7 @@ def today_spend(p: Platform, now: datetime | None = None) -> float:
     total = 0.0
     for x in cache["rows"]:
         amount = float(x.get("amount") or 0)
-        if amount < 0:
-            total -= amount
-        elif x.get("tx_type") != "REWARD" and str(x.get("reference_id")) in debits:
+        if amount < 0 or (x.get("tx_type") != "REWARD" and str(x.get("reference_id")) in debits):
             total -= amount
     return max(0.0, total)
 

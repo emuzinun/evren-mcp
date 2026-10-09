@@ -12,8 +12,8 @@ import json
 import secrets
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 from .errors import EvrenError
 
@@ -53,10 +53,10 @@ class QuoteBook:
 
     def _purge(self) -> None:
         now = self._clock()
-        for k in [k for k, q in self._quotes.items() if q.expires_at <= now]:
-            del self._quotes[k]
-        for k in [k for k, (t, _) in self._recent.items() if t + self.ttl_s <= now]:
-            del self._recent[k]
+        for qid in [qid for qid, q in self._quotes.items() if q.expires_at <= now]:
+            del self._quotes[qid]
+        for token in [token for token, (t, _) in self._recent.items() if t + self.ttl_s <= now]:
+            del self._recent[token]
 
     def add(self, project_id: str, body: dict, estimated_cr: float, worst_cr: float | None = None) -> Quote:
         with self._lock:

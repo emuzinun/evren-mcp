@@ -19,7 +19,7 @@ def test_read_tools_listed_and_marked_read_only(fake, platform, fast_settings):
             return (await c.list_tools()).tools
 
     tools = {t.name: t for t in run(go)}
-    assert READ_TOOLS <= set(tools)
+    assert set(tools) >= READ_TOOLS
     assert all(tools[n].annotations.read_only_hint for n in READ_TOOLS)
 
 
@@ -107,3 +107,37 @@ def test_prompts_and_resources(fake, platform, fast_settings):
     assert "estimate_training" in egit and "drone seti" in egit and "onay" in egit
     assert "daily-login" in kurallar
     assert gunluk == "[]"
+
+
+def test_stop_is_destructive_and_zip_check_is_separate_from_upload(fake, platform, fast_settings):
+    """Ertelenen bulgular: durdurma geri alınamaz; kuru kontrole verilen kalıcı izin gerçek
+    yüklemeyi kapsamamalı (Claude Code izni araç adına göre hatırlar)."""
+    srv = build_server(fast_settings, platform=platform)
+
+    async def go():
+        async with Client(srv) as c:
+            return {t.name: t for t in (await c.list_tools()).tools}
+
+    tools = run(go)
+    assert tools["stop_training"].annotations.destructive_hint is True
+    assert tools["check_dataset_zip"].annotations.read_only_hint is True
+    assert tools["upload_dataset"].annotations.read_only_hint is False
+    assert "dry_run" not in tools["upload_dataset"].input_schema["properties"]
+
+
+def test_check_dataset_zip_sends_nothing_to_platform(fake, platform, fast_settings, tmp_path):
+    import zipfile
+
+    z = tmp_path / "a.zip"
+    with zipfile.ZipFile(z, "w") as f:
+        f.writestr("data.yaml", "names: {0: car}\n")
+        f.writestr("images/a.jpg", b"A")
+    srv = build_server(fast_settings, platform=platform)
+
+    async def go():
+        async with Client(srv) as c:
+            return await c.call_tool("check_dataset_zip", {"zip_path": str(z)})
+
+    r = run(go)
+    assert not r.is_error and '"gorsel": 1' in r.content[0].text
+    assert fake.requests == []

@@ -1,7 +1,11 @@
+from pathlib import Path
+
+import httpx
 import pytest
 
 from evren_mcp.errors import EvrenError
 from evren_mcp.evaluation import evaluate
+from evren_mcp.models import download_model
 from evren_mcp.quotes import QuoteBook
 from tests.fakes import envelope
 
@@ -54,13 +58,6 @@ def test_evaluate_rejects_bad_split(platform, fast_settings):
         )
 
 
-from pathlib import Path
-
-import httpx
-
-from evren_mcp.models import download_model
-
-
 def test_download_model_writes_under_download_dir(fake, platform, fast_settings):
     fake.on(
         "GET",
@@ -95,3 +92,25 @@ def test_download_refuses_overwrite(fake, platform, fast_settings):
     download_model(platform, fast_settings, MODEL)
     with pytest.raises(EvrenError, match="zaten var"):
         download_model(platform, fast_settings, MODEL)
+
+
+def test_download_does_not_overwrite_file_created_during_download(fake, platform, fast_settings):
+    """Ertelenen bulgu: eşzamanlı iki indirme varlık kontrolünü birlikte geçerse ikincisi
+    birincinin dosyasının üstüne yazmamalı."""
+    dest = fast_settings.download_dir / MODEL[:8] / "best.pt"
+
+    def yaris(request):
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(b"ilk")
+        return httpx.Response(200, content=b"ikinci")
+
+    fake.on(
+        "GET",
+        f"/models/versions/{MODEL}/download",
+        (200, envelope({"download_url": "/api/v1/files/m/best.pt", "filename": "best.pt"})),
+    )
+    fake.on("GET", "/files/m/best.pt", yaris)
+    with pytest.raises(EvrenError, match="zaten var"):
+        download_model(platform, fast_settings, MODEL)
+    assert dest.read_bytes() == b"ilk"
+    assert list(dest.parent.iterdir()) == [dest]
