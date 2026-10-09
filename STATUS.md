@@ -13,7 +13,9 @@ GitHub noreply, iç plan ve gerçek kimlikler geçmişten çıkarıldı.
 
 ## Sıradaki
 
-1. **Yayın** — kullanıcının kararı; adımlar `docs/yayina-hazirlik.md`.
+1. **Yayın** — kalan adımlar ve kimin yapacağı `docs/yayina-hazirlik.md` →
+   "Yapılacaklar" tablosunda. Yayına kadar eski gizli repo kullanılıyor; silip
+   yeniden açmak yayından hemen önce.
 2. **Claude Code içi doğrulama:** araç izin sorusunun görünüşü, `/` menüsünde
    akışların tam adı.
 3. **Başarısız işte iade doğrulaması:** iadenin defterde hangi `reference_id`
