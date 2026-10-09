@@ -1,9 +1,24 @@
+# Sırlar
 .env
 .env.*
 !.env.example
-.venv/
+
+# Python
 __pycache__/
 *.py[cod]
-*.pt
+.venv/
+build/
 dist/
-.superpowers/
+*.egg-info/
+
+# Araç önbellekleri ve raporlar
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Model ağırlıkları
+*.pt

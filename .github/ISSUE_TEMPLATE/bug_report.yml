@@ -1,0 +1,42 @@
+name: Hata bildirimi / Bug report
+description: Bir şey beklendiği gibi çalışmıyor.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **API anahtarınızı, `.env` içeriğini, TCKN'nizi ya da kişisel verinizi buraya yazmayın.**
+        `diagnostics` aracının çıktısı anahtarı maskeli verir; onu paylaşabilirsiniz.
+        Please never paste your API key or `.env` contents.
+  - type: textarea
+    id: what
+    attributes:
+      label: Ne oldu? / What happened?
+      description: Claude Code'a ne dediniz, hangi araç çağrıldı, ne gördünüz?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Ne bekliyordunuz? / What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: diagnostics çıktısı / diagnostics output
+      render: json
+  - type: input
+    id: versions
+    attributes:
+      label: Sürümler / Versions
+      placeholder: evren-mcp 0.1.0, Python 3.13, Windows 11, Claude Code 2.x
+    validations:
+      required: true
+  - type: checkboxes
+    id: secrets
+    attributes:
+      label: Kontrol / Check
+      options:
+        - label: Bu bildirimde API anahtarı ya da kişisel veri yok. / This report contains no API key or personal data.
+          required: true

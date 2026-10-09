@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Güvenlik açığı bildirimi / Security vulnerability
+    url: https://github.com/emuzinun/evren-mcp/security/advisories/new
+    about: Açıkları herkese açık issue olarak değil, gizli bildirimle iletin. / Please report privately.
+  - name: Platformun kendisiyle ilgili sorunlar / Platform issues
+    url: https://evren.ssyz.org.tr
+    about: Hesap, kredi ve platform hataları için EVREN platformunun kendi destek kanalı kullanılır.

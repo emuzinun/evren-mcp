@@ -1,0 +1,27 @@
+name: Öneri / Feature request
+description: Yeni bir araç ya da davranış önerin.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Silme, herkese açık yapma, etiketleme, kullanım şartlarını onaylama ve anahtar yönetimi
+        bilerek kapsam dışıdır (README → "Bilerek olmayanlar").
+        Deleting, publishing, labeling, accepting terms and key management are out of scope by design.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Hangi sorunu çözüyor? / What problem does it solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Öneri / Proposal
+    validations:
+      required: true
+  - type: textarea
+    id: cost
+    attributes:
+      label: Kredi harcıyor mu? / Does it spend credits?
+      description: Harcıyorsa onay kapısından nasıl geçmeli?
