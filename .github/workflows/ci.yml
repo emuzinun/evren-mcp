@@ -38,7 +38,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        # Gizliyken yalnız Linux; Windows ve macOS herkese açınca ya da v0.2.0
+        # etiketinden önce geri gelir (docs/yayina-hazirlik.md).
+        os: [ubuntu-latest]
         python: ["3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v7
