@@ -4,8 +4,8 @@
 
 ## Nerede kaldık
 
-Repo herkese açılmaya hazır, **henüz açılmadı**. Lisans (MIT), Türkçe README
-(varsayılan) + İngilizcesi, katkı/güvenlik/davranış belgeleri, CI (gizliyken yalnız Linux ×
+Repo **herkese açık** (19.10.2026), ilk sürüm henüz yok. Lisans (MIT), Türkçe README
+(varsayılan) + İngilizcesi, katkı/güvenlik/davranış belgeleri, CI (Linux, Windows, macOS ×
 Python 3.11–3.14, ruff, mypy, paket denetimi; action'lar SHA'ya sabit; yalnız
 belge değişince de "CI sonucu" döner), commit'ler SSH ile imzalı, dependabot ve issue/PR
 şablonları eklendi. Ertelenen inceleme bulgularından yedisi testle kapatıldı
@@ -14,8 +14,7 @@ GitHub noreply, iç plan ve gerçek kimlikler geçmişten çıkarıldı.
 
 ## Sıradaki
 
-1. **Yayın** — kalan adımlar ve kimin yapacağı depo dışındaki yayın listesinde.
-   Açmadan önce repo bir kez daha silinip yeni geçmişle açılır.
+1. **İlk sürüm `v0.2.0`** — adımlar depo dışındaki yayın listesinde.
 2. **Claude Code içi doğrulama:** araç izin sorusunun görünüşü, `/` menüsünde
    akışların tam adı.
 3. **Başarısız işte iade doğrulaması:** iadenin defterde hangi `reference_id`
