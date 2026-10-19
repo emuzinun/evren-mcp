@@ -19,7 +19,8 @@ daily credit cap of its own.
 > [!IMPORTANT]
 > **Unofficial project.** This is an independent community project. It is not
 > developed, endorsed or supported by the Presidency of Defence Industries
-> (SSB) or the EVREN AI Platform. The name "EVREN" is used only to describe
+> (SSB) or the EVREN Yapay Zeka Platformu (EVREN AI Platform).
+> The name "EVREN" is used only to describe
 > compatibility. The server runs only with **your own** API key; everything it
 > does is subject to the EVREN Platform User Agreement on your account. Under
 > articles 4.9–4.11 of that agreement, datasets and models you upload may be

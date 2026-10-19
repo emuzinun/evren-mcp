@@ -4,7 +4,7 @@
 
 ## Nerede kaldık
 
-Repo **herkese açık** (19.10.2026), ilk sürüm henüz yok. Lisans (MIT), Türkçe README
+Repo **herkese açık** (19.10.2026); ilk sürüm `v0.2.0` yayında (19.10.2026). Lisans (MIT), Türkçe README
 (varsayılan) + İngilizcesi, katkı/güvenlik/davranış belgeleri, CI (Linux, Windows, macOS ×
 Python 3.11–3.14, ruff, mypy, paket denetimi; action'lar SHA'ya sabit; yalnız
 belge değişince de "CI sonucu" döner), commit'ler SSH ile imzalı, dependabot ve issue/PR
@@ -14,11 +14,10 @@ GitHub noreply, iç plan ve gerçek kimlikler geçmişten çıkarıldı.
 
 ## Sıradaki
 
-1. **İlk sürüm `v0.2.0`** — adımlar depo dışındaki yayın listesinde.
-2. **Claude Code içi doğrulama:** araç izin sorusunun görünüşü, `/` menüsünde
+1. **Claude Code içi doğrulama:** araç izin sorusunun görünüşü, `/` menüsünde
    akışların tam adı.
-3. **Başarısız işte iade doğrulaması:** iadenin defterde hangi `reference_id`
+2. **Başarısız işte iade doğrulaması:** iadenin defterde hangi `reference_id`
    ile geldiği ölçülmedi; ölçülünce `get_training` açıklamasına girer.
-4. **Elicitation:** Claude Code 2.1.295 destekliyor; `start_training`'e ek
+3. **Elicitation:** Claude Code 2.1.295 destekliyor; `start_training`'e ek
    onay katmanı olarak değerlendirilebilir.
-5. **README'ye kısa ekran kaydı** (GIF) — gerçek oturumdan.
+4. **README'ye kısa ekran kaydı** (GIF) — gerçek oturumdan.
