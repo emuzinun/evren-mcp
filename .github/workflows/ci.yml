@@ -1,12 +1,13 @@
 name: CI
 
-# Yalnız belge değişince CI koşmaz (gizli repoda her dakika kotadan düşer).
+# paths-ignore yok: "CI sonucu" zorunlu kontrol; iş hiç başlamazsa yalnız belge
+# değiştiren PR "bekleniyor"da kalır ve birleşmez. Onun yerine sır taraması işi
+# değişen dosyalara bakar; yalnız belge değiştiyse lint, test ve paket atlanır
+# (gizli repoda her dakika kotadan düşer), "CI sonucu" yine yeşil döner.
 on:
   push:
     branches: [main]
-    paths-ignore: ["**/*.md", "docs/**"]
   pull_request:
-    paths-ignore: ["**/*.md", "docs/**"]
 
 permissions:
   contents: read
@@ -18,6 +19,8 @@ concurrency:
 jobs:
   lint:
     name: Lint ve tip denetimi
+    needs: secrets
+    if: needs.secrets.outputs.kod == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -34,12 +37,14 @@ jobs:
 
   test:
     name: Test (${{ matrix.os }}, Python ${{ matrix.python }})
+    needs: secrets
+    if: needs.secrets.outputs.kod == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         # Gizliyken yalnız Linux; Windows ve macOS herkese açınca ya da v0.2.0
-        # etiketinden önce geri gelir (docs/yayina-hazirlik.md).
+        # etiketinden önce geri gelir.
         os: [ubuntu-latest]
         python: ["3.11", "3.12", "3.13", "3.14"]
     steps:
@@ -53,9 +58,13 @@ jobs:
       - run: uv sync --locked
       - run: uv run pytest -q --cov --cov-report=term
 
+  # Belge değişikliğinde de koşar (belgeye de sır sızabilir). Değişiklik denetimi
+  # ayrı iş değil, buraya adım: ayrı iş her çalışmada bir dakika daha yazar.
   secrets:
-    name: Sır taraması (gitleaks)
+    name: Sır taraması ve değişiklik denetimi
     runs-on: ubuntu-latest
+    outputs:
+      kod: ${{ steps.degisiklik.outputs.kod }}
     env:
       GITLEAKS_VERSION: 8.30.1
     steps:
@@ -63,6 +72,29 @@ jobs:
         with:
           fetch-depth: 0 # bütün geçmiş: açık repoda eski commit'ler de görünür
           persist-credentials: false
+      - name: Belge dışında dosya değişti mi
+        id: degisiklik
+        env:
+          OLAY: ${{ github.event_name }}
+          ONCEKI: ${{ github.event.before }}
+        run: |
+          # PR'da HEAD birleştirme commit'idir, ilk ebeveyni hedef dal.
+          # Push'ta önceki uç yoksa (ilk push, zorla push) hepsi koşar.
+          if [ "$OLAY" = pull_request ]; then
+            aralik="HEAD^1 HEAD"
+          elif git cat-file -e "${ONCEKI}^{commit}" 2>/dev/null; then
+            aralik="$ONCEKI HEAD"
+          else
+            aralik=""
+          fi
+          kod=true
+          if [ -n "$aralik" ]; then
+            # Ayrı satırda: diff hata verirse adım kırmızı olur, testler sessizce atlanmaz.
+            dosyalar=$(git diff --name-only $aralik)
+            printf '%s\n' "$dosyalar" | grep -qvE '\.md$|^docs/|^$' || kod=false
+          fi
+          echo "aralık: ${aralik:-yok}, kod: $kod"
+          echo "kod=$kod" >> "$GITHUB_OUTPUT"
       - name: gitleaks kur (sabit sürüm, sağlama toplamı doğrulanır)
         run: |
           base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
@@ -75,6 +107,8 @@ jobs:
 
   build:
     name: Paket
+    needs: secrets
+    if: needs.secrets.outputs.kod == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -90,7 +124,8 @@ jobs:
           ! grep -E '(^|/)\.env$|CLAUDE\.md|STATUS\.md|/docs/' sdist.txt
 
   # Branch kuralında "zorunlu kontrol" olarak tek bu iş seçilir; matris büyüse de
-  # kural değişmez. Bir iş atlanır ya da iptal edilirse de kırmızı olur.
+  # kural değişmez. Atlanan iş yalnız sır taraması "yalnız belge" dediyse kabul;
+  # başka her atlanma ya da iptal kırmızıdır.
   sonuc:
     name: CI sonucu
     if: always()
@@ -99,7 +134,12 @@ jobs:
     steps:
       - name: Bütün işler geçti mi
         env:
+          KOD: ${{ needs.secrets.outputs.kod }}
           SONUCLAR: ${{ join(needs.*.result, ' ') }}
         run: |
-          echo "$SONUCLAR"
-          for s in $SONUCLAR; do [ "$s" = success ] || exit 1; done
+          echo "kod: ${KOD:-yok}, sonuçlar: $SONUCLAR"
+          for s in $SONUCLAR; do
+            [ "$s" = success ] && continue
+            [ "$s" = skipped ] && [ "$KOD" = false ] && continue
+            exit 1
+          done
