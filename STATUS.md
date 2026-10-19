@@ -1,19 +1,20 @@
 # Durum
 
-## Son oturum · 09.10.2026 (yayın hazırlığı)
+## Son oturum · 19.10.2026 (yayın hazırlığı)
 
 ## Nerede kaldık
 
 Repo herkese açılmaya hazır, **henüz açılmadı**. Lisans (MIT), İngilizce +
-Türkçe README, katkı/güvenlik/davranış belgeleri, CI (3 işletim sistemi ×
-Python 3.11–3.14, ruff, mypy, paket denetimi), dependabot ve issue/PR
+Türkçe README, katkı/güvenlik/davranış belgeleri, CI (gizliyken yalnız Linux ×
+Python 3.11–3.14, ruff, mypy, paket denetimi; action'lar SHA'ya sabit; yalnız
+belge değişince de "CI sonucu" döner), commit'ler SSH ile imzalı, dependabot ve issue/PR
 şablonları eklendi. Ertelenen inceleme bulgularından yedisi testle kapatıldı
 (`CHANGELOG.md` → Yayınlanmadı). Geçmiş yeniden yazıldı: commit e-postası
 GitHub noreply, iç plan ve gerçek kimlikler geçmişten çıkarıldı.
 
 ## Sıradaki
 
-1. **Yayın** — kalan adımlar ve kimin yapacağı `docs/yayina-hazirlik.md` →
+1. **Yayın** — kalan adımlar ve kimin yapacağı depo dışındaki yayın listesinde →
    "Yapılacaklar" tablosunda. Yayına kadar eski gizli repo kullanılıyor; silip
    yeniden açmak yayından hemen önce.
 2. **Claude Code içi doğrulama:** araç izin sorusunun görünüşü, `/` menüsünde

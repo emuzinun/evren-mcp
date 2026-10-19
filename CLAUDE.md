@@ -3,7 +3,7 @@ Yığın: Python ≥ 3.11 (geliştirmede 3.13) · `mcp` 2.3 (`MCPServer`, stdio)
 Komutlar: `uv run pytest -q` · `uv run ruff check src tests` · `uv run ruff format src tests` ·
 `uv run mypy` · `uv run evren-mcp` (stdio sunucusu)
 Belgeler: README.md (EN) · README.tr.md · CONTRIBUTING.md · `docs/tasarim.md` (tasarım) ·
-`docs/canli-dogrulama.md` (gerçek platformda ölçülenler) · `docs/yayina-hazirlik.md` (yayın adımları)
+`docs/canli-dogrulama.md` (gerçek platformda ölçülenler) · yayın adımları depo dışında
 
 ---
 
