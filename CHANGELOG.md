@@ -8,7 +8,7 @@ sürümler [Anlamsal Sürümleme](https://semver.org/lang/tr/)'ye uyar.
 ### Eklendi
 
 - `check_dataset_zip`: zip'i platforma bir şey göndermeden yerelde kontrol eder.
-- MIT lisansı, İngilizce ve Türkçe README, katkı rehberi, güvenlik politikası.
+- MIT lisansı, Türkçe README (varsayılan) ve İngilizcesi (`README.en.md`), katkı rehberi, güvenlik politikası.
 - CI: Linux, Windows ve macOS'ta Python 3.11–3.14 testleri; ruff ve mypy.
 
 ### Değişti

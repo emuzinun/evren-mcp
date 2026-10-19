@@ -121,6 +121,10 @@ jobs:
       - name: Paket içinde sır ya da yerel dosya yok
         run: |
           tar -tzf dist/*.tar.gz | tee sdist.txt
+          # İki README de pakette (README.md Türkçe, varsayılan). Olumsuz denetim
+          # son satırda kalır: `!` ile başlayan komut `bash -e`'yi tetiklemez.
+          grep -qE '/README\.md$' sdist.txt
+          grep -qE '/README\.en\.md$' sdist.txt
           ! grep -E '(^|/)\.env$|CLAUDE\.md|STATUS\.md|/docs/' sdist.txt
 
   # Branch kuralında "zorunlu kontrol" olarak tek bu iş seçilir; matris büyüse de

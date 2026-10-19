@@ -1,170 +1,165 @@
 # evren-mcp
 
 [![CI](https://github.com/emuzinun/evren-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/emuzinun/evren-mcp/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Lisans: MIT](https://img.shields.io/badge/lisans-MIT-blue.svg)](LICENSE)
 ![Python 3.11–3.14](https://img.shields.io/badge/python-3.11%E2%80%933.14-blue.svg)
 
-**English** · [Türkçe](README.tr.md)
+**Türkçe** · [English](README.en.md)
 
-An [MCP](https://modelcontextprotocol.io) server that connects the **EVREN AI
-platform** (Türkiye's defence-industry AI platform) to Claude Code. Ask
-*"train a small model on this dataset — how much will it cost?"* and Claude
-shows the price, waits for your approval, starts the job, and reports the
-results and your leaderboard change.
+**EVREN Yapay Zeka Platformu**'nu Claude Code'a bağlayan bir
+[MCP](https://modelcontextprotocol.io) sunucusu. *"Bu veri setinde küçük bir
+model eğit, kaça mal olur?"* dediğinde Claude maliyeti gösterir, onayını
+bekler, eğitimi başlatır, sonucu ve puan farkını getirir.
 
-**What's different:** no credit-spending job starts without a quote that was
-shown to you and approved by you. The server also enforces a per-job and a
-daily credit cap of its own.
+**Farkı:** kredi harcayan hiçbir iş, sana gösterilmiş ve senin onayladığın bir
+teklif olmadan başlamaz. Sunucu ayrıca kendi tek iş ve günlük kredi tavanını
+uygular.
 
 > [!IMPORTANT]
-> **Unofficial project.** This is an independent community project. It is not
-> developed, endorsed or supported by the Presidency of Defence Industries
-> (SSB) or the EVREN AI Platform. The name "EVREN" is used only to describe
-> compatibility. The server runs only with **your own** API key; everything it
-> does is subject to the EVREN Platform User Agreement on your account. Under
-> articles 4.9–4.11 of that agreement, datasets and models you upload may be
-> used by the platform for model training.
+> **Resmî değildir.** Bu bağımsız bir topluluk projesidir; Savunma Sanayii
+> Başkanlığı (SSB) ya da EVREN Yapay Zeka Platformu tarafından geliştirilmemiş,
+> onaylanmamış ve desteklenmemektedir. "EVREN" adı yalnız uyumluluğu belirtmek
+> için kullanılır. Sunucu yalnız **senin kendi** API anahtarınla çalışır; yaptığı
+> her işlem hesabına bağlı EVREN Platformu Kullanıcı Sözleşmesi'ne tabidir.
+> Sözleşmenin 4.9–4.11. maddeleri gereği yüklediğin veri setleri ve modeller
+> platform tarafından model eğitiminde kullanılabilir.
 
-## Example
+## Örnek
 
 ```text
-You:    Fine-tune a small model on my drone dataset. What will it cost?
+Sen:    Drone setimde küçük bir modeli ince ayarla. Kaça mal olur?
 Claude: (list_datasets → estimate_training)
-        Quote T-51B553 — estimated 0.54 CR, worst case 1.82 CR.
-        Spent today: 0 / 20 CR. Valid for 10 minutes. Start it?
-You:    Yes.
-Claude: (start_training T-51B553) Job started: exporting data → training.
+        Teklif T-51B553 — tahmini 0,54 CR, en kötü 1,82 CR.
+        Bugün harcanan: 0 / 20 CR. Teklif 10 dk geçerli. Başlatayım mı?
+Sen:    Evet.
+Claude: (start_training T-51B553) Eğitim başladı: veri hazırlanıyor → eğitiliyor.
         …
-Claude: (get_training) Completed. Actual cost 0.14 CR, mAP50 0.356,
-        +15 points.
+Claude: (get_training) Tamamlandı. Gerçek maliyet 0,14 CR, mAP50 0,356,
+        +15 puan.
 ```
 
-The costs, metric and points above are from a real run on 06.10.2026; the
-dialogue is abridged.
+Maliyet, metrik ve puan 06.10.2026'daki gerçek bir eğitimden; konuşma
+kısaltılmıştır.
 
-## Requirements
+## Gerekenler
 
-- [uv](https://docs.astral.sh/uv/) (installs a suitable Python automatically; Python 3.11+)
-- [Claude Code](https://docs.claude.com/en/docs/claude-code) or another MCP client
-- An EVREN account and a **Platform** API key (panel → API keys → Platform)
+- [uv](https://docs.astral.sh/uv/) (uygun Python'u kendisi kurar; Python 3.11+)
+- [Claude Code](https://docs.claude.com/en/docs/claude-code) ya da başka bir MCP istemcisi
+- EVREN hesabı ve **Platform** API anahtarı (panel → API anahtarları → Platform)
 
-## Install
+## Kurulum
 
-1. Put your key in a file that only you can read, e.g. `~/.evren-mcp/.env`:
+1. Anahtarını yalnız senin okuyabileceğin bir dosyaya yaz, ör. `~/.evren-mcp/.env`:
 
    ```dotenv
-   EVREN_PLATFORM_API_KEY=your-platform-key
+   EVREN_PLATFORM_API_KEY=platform-anahtarin
    ```
 
-2. Register the server with Claude Code (use the full path to the file):
+2. Sunucuyu Claude Code'a kaydet (dosyanın tam yolunu ver):
 
    ```bash
-   claude mcp add evren --scope user -e EVREN_ENV_FILE=/full/path/to/.env \
+   claude mcp add evren --scope user -e EVREN_ENV_FILE=/tam/yol/.env \
      -- uvx --from git+https://github.com/emuzinun/evren-mcp evren-mcp
    claude mcp list   # evren … ✔ Connected
    ```
 
-   On Windows use a path such as `C:/Users/you/.evren-mcp/.env`.
+   Windows'ta `C:/Users/sen/.evren-mcp/.env` gibi bir yol kullan.
 
 <details>
-<summary>From a local clone (for development)</summary>
+<summary>Yerel kopyadan (geliştirme için)</summary>
 
 ```bash
 git clone https://github.com/emuzinun/evren-mcp.git && cd evren-mcp
 uv sync
-cp .env.example .env   # fill in EVREN_PLATFORM_API_KEY
-claude mcp add evren --scope user -e EVREN_ENV_FILE=<full-path>/.env \
-  -- uv run --directory <full-path> evren-mcp
+cp .env.example .env   # EVREN_PLATFORM_API_KEY'i doldur
+claude mcp add evren --scope user -e EVREN_ENV_FILE=<tam-yol>/.env \
+  -- uv run --directory <tam-yol> evren-mcp
 ```
 
 </details>
 
-Ask Claude *"call evren diagnostics"* to check the setup: it shows your
-settings with the key masked.
+Kurulumu denemek için Claude'a *"evren diagnostics çağır"* de: ayarlarını
+anahtar maskeli gösterir.
 
-## Tools
+## Araçlar
 
-User-facing messages are in Turkish.
-
-| Tool | What it does | Cost |
+| Araç | Ne yapar | Maliyet |
 |---|---|---|
-| `list_datasets` | Datasets and their versions | free |
-| `search_universe` | Search public datasets/models | free |
-| `get_credits` | Balance and recent ledger | free |
-| `get_standing` | Points, tier, gap to the top 10 | free |
-| `estimate_training` | Cost estimate + quote valid for 10 min | free |
-| `start_training` | Starts training from a quote | **credits** |
-| `get_training` / `list_trainings` | Status, metrics, explained errors, point change | free |
-| `stop_training` | Stops a running job (irreversible) | refund |
-| `evaluate_model` | Scores a model on a split | ~0.04 CR |
-| `download_model` | Downloads weights (`best.pt`) | free |
-| `check_dataset_zip` | Checks a zip locally; nothing is sent | free |
-| `upload_dataset` | Uploads a zip to a new **private** dataset | free |
-| `diagnostics` | Settings (key masked), client capabilities | free |
+| `list_datasets` | Setler ve sürümleri | bedava |
+| `search_universe` | Herkese açık set/model arama | bedava |
+| `get_credits` | Bakiye ve son hareketler | bedava |
+| `get_standing` | Puan, seviye, ilk 10 sınırına fark | bedava |
+| `estimate_training` | Maliyet tahmini + 10 dk geçerli teklif | bedava |
+| `start_training` | Teklifle eğitimi başlatır | **kredi** |
+| `get_training` / `list_trainings` | Durum, metrik, Türkçe hata açıklaması, puan farkı | bedava |
+| `stop_training` | Süren eğitimi durdurur (geri alınamaz) | iade |
+| `evaluate_model` | Modelin bir bölmedeki notunu ölçer | ~0,04 CR |
+| `download_model` | Ağırlığı (`best.pt`) indirir | bedava |
+| `check_dataset_zip` | Zip'i yerelde kontrol eder; hiçbir şey gönderilmez | bedava |
+| `upload_dataset` | Zip'i yeni **gizli** sete yükler | bedava |
+| `diagnostics` | Ayarlar (anahtar maskeli), istemci yetenekleri | bedava |
 
-**Prompts** (slash commands in Claude Code): `egit` — guided training,
-`durum` — balance, points and running jobs.
-**Resources:** `evren://kurallar` (credit earning rules),
-`evren://gunluk` (local training journal).
+**Hazır akışlar** (Claude Code'da `/` menüsünde): `egit` — rehberli eğitim,
+`durum` — bakiye, puan ve süren eğitimler.
+**Kaynaklar:** `evren://kurallar` (kredi kazanç kuralları),
+`evren://gunluk` (yerel eğitim günlüğü).
 
-## Approval gate
+## Onay kapısı
 
 ```text
-estimate_training ──► quote (settings fingerprint, est./worst cost, 10 min)
+estimate_training ──► teklif (ayar parmak izi, tahmini/en kötü tutar, 10 dk)
         │
-   you approve
+   sen onaylarsın
         │
-start_training(quote) ──► quote valid & unused? ──► per-job cap ──► daily cap ──► POST
-                                 no → refused          (worst case)   (platform ledger, UTC day)
+start_training(teklif) ──► teklif geçerli, kullanılmamış? ──► tek iş tavanı ──► günlük tavan ──► POST
+                                  hayır → ret                  (en kötü durum)   (platform defteri, UTC günü)
 ```
 
-1. A quote is single-use and expires after 10 minutes; the server forgets
-   quotes when it restarts, so an old price can never start a job.
-2. The per-job cap is checked against the platform's worst-case estimate.
-3. The daily cap uses today's spending from the platform's own credit ledger,
-   plus open quotes and just-started jobs (for 10 minutes), so parallel calls
-   cannot both slip under the cap.
-4. If the platform gives an unclear answer to a start request, the request is
-   **not** resent (that could charge twice); the server looks for the job in
-   the job list instead.
-5. Claude Code additionally asks for permission on each tool call.
+1. Teklif tek kullanımlıktır ve 10 dakikada düşer; sunucu yeniden başlayınca
+   teklifler silinir, eski bir fiyatla iş başlamaz.
+2. Tek iş tavanı platformun en kötü durum tahminine göre denetlenir.
+3. Günlük tavan, bugünkü harcamayı platformun kendi kredi defterinden okur;
+   açık teklifler ve yeni başlamış işler de 10 dk boyunca sayılır. Böylece
+   eşzamanlı iki çağrı tavanın altından birlikte geçemez.
+4. Platform başlatma isteğine net yanıt vermezse istek **tekrar gönderilmez**
+   (çift ücret riski); sunucu işi iş listesinde arar.
+5. Claude Code ayrıca her araç çağrısında izin sorar.
 
-## Settings
+## Ayarlar
 
-Environment variables, or the file named by `EVREN_ENV_FILE` (default: `.env`
-in the working directory). Process environment wins over the file.
+Ortam değişkenleri ya da `EVREN_ENV_FILE`'ın gösterdiği dosya (varsayılan:
+çalışma klasöründeki `.env`). Süreç ortamındaki değer dosyadakini ezer.
 
-| Variable | Default |
+| Değişken | Varsayılan |
 |---|---|
-| `EVREN_PLATFORM_API_KEY` | (required) |
+| `EVREN_PLATFORM_API_KEY` | (zorunlu) |
 | `EVREN_ENV_FILE` | `./.env` |
-| `EVREN_PROJECT_ID` | first project |
+| `EVREN_PROJECT_ID` | ilk proje |
 | `EVREN_MAX_JOB_CR` | 5 |
 | `EVREN_MAX_DAILY_CR` | 20 |
 | `EVREN_JOURNAL_PATH` | `~/.evren-mcp/journal.jsonl` |
 | `EVREN_DOWNLOAD_DIR` | `~/.evren-mcp/models` |
 | `EVREN_MAX_UPLOAD_MB` | 2048 |
 
-## Security and privacy
+## Güvenlik ve gizlilik
 
-- The key is sent only over HTTPS to the API host; download links on other
-  hosts never receive it. It is masked in every output and error message.
-- Requests are throttled to 20/min with burst smoothing, so the platform's
-  rate limits are never pushed (its terms forbid bypassing them).
-- The training journal and downloaded models stay on your machine.
-- See [SECURITY.md](SECURITY.md) to report a vulnerability.
+- Anahtar yalnız HTTPS ile API alan adına gider; başka alan adındaki indirme
+  bağlantılarına gitmez. Her çıktıda ve hata mesajında maskelenir.
+- İstekler dakikada 20 ile ve patlama yumuşatmayla sınırlanır; platformun hız
+  sınırı zorlanmaz (şartlar sınırı atlatmayı yasaklıyor).
+- Eğitim günlüğü ve indirilen modeller senin makinende kalır.
+- Açık bildirmek için [SECURITY.md](SECURITY.md).
 
-## Deliberately missing
+## Bilerek olmayanlar
 
-Deleting, making things public, labeling, accepting terms of use, and key
-management. These stay manual, in the platform's web panel.
+Silme, herkese açık yapma, etiketleme, kullanım şartlarını onaylama, anahtar
+yönetimi. Bunlar panelde kullanıcının elinde kalır.
 
-## Development
+## Geliştirme
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Design notes (Turkish):
-[docs/tasarim.md](docs/tasarim.md), measured platform behaviour:
-[docs/canli-dogrulama.md](docs/canli-dogrulama.md).
+[CONTRIBUTING.md](CONTRIBUTING.md). Tasarım: [docs/tasarim.md](docs/tasarim.md),
+platformda ölçülen davranış: [docs/canli-dogrulama.md](docs/canli-dogrulama.md).
 
-## License
+## Lisans
 
 [MIT](LICENSE)

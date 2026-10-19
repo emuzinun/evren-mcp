@@ -184,5 +184,5 @@ onayıyla. İlk gerçek eğitim 06.10.2026'da yapıldı (`docs/canli-dogrulama.m
 
 ## 11. Dil
 
-Kullanıcıya dönen metin ve hata açıklamaları Türkçe; README İngilizce
-(`README.md`) + Türkçe (`README.tr.md`); kod adları İngilizce, yorumlar ve commit mesajları Türkçe.
+Kullanıcıya dönen metin ve hata açıklamaları Türkçe; README Türkçe
+(`README.md`, varsayılan) + İngilizce (`README.en.md`); kod adları İngilizce, yorumlar ve commit mesajları Türkçe.
