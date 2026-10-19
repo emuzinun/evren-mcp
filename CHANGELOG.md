@@ -5,6 +5,8 @@ sürümler [Anlamsal Sürümleme](https://semver.org/lang/tr/)'ye uyar.
 
 ## [Yayınlanmadı]
 
+## [0.2.0] — 19.10.2026
+
 ### Eklendi
 
 - `check_dataset_zip`: zip'i platforma bir şey göndermeden yerelde kontrol eder.
@@ -46,5 +48,6 @@ sürümler [Anlamsal Sürümleme](https://semver.org/lang/tr/)'ye uyar.
 - Platform okuma isteklerinde 500'e karşı yeniden deneme; anahtar yalnız API
   alan adına gider.
 
-[Yayınlanmadı]: https://github.com/emuzinun/evren-mcp/commits/main
+[Yayınlanmadı]: https://github.com/emuzinun/evren-mcp/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/emuzinun/evren-mcp/releases/tag/v0.2.0
 [0.1.0]: https://github.com/emuzinun/evren-mcp/commits/main
