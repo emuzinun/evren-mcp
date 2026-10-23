@@ -1,6 +1,6 @@
 [project]
 name = "evren-mcp"
-version = "0.2.0"
+version = "0.2.1"
 description = "EVREN Yapay Zeka Platformu için resmî olmayan MCP sunucusu: Claude Code'dan maliyet onaylı model eğitimi"
 readme = "README.md"
 requires-python = ">=3.11"
