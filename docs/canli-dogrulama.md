@@ -44,3 +44,15 @@ araçları bu oturumda yüklü değildi; akış aynı) `[ölçüldü]`:
 - `start`: iş `EXPORTING` → 1 dk içinde `TRAINING` → `COMPLETED`.
 - Gerçek maliyet 0,14 CR. Fine-tune 1. epoch mAP50 0,356 (ağırlık yükleniyor).
 - `status` bitişi günlüğe yazdı: `puan_farki: 15`.
+
+## 23.10.2026 — `recipe` artık reddediliyor
+
+`POST /training/jobs/dry-run` `[ölçüldü]`:
+- Gövdede `recipe` varken 422 `VALIDATION_ERROR`. Genel mesaj "istek gövdesi
+  eksik veya JSON olarak ayrıştırılamadı" diyor (yanıltıcı); asıl gerekçe
+  `error.details[].message` içinde: "recipe/preset API'de desteklenmiyor;
+  tarifin değerlerini hyperparams içinde açıkça gönderin". Önceden alan yok
+  sayılıyordu.
+- `recipe` olmadan aynı gövde `valid: true`.
+- `gpu_count` uyarıyla yok sayılıyor ("Tanınmayan alan yok sayıldı");
+  seçilen GPU sayısı 1. `POST /training/jobs`'taki davranışı ölçülmedi.

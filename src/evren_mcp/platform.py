@@ -128,6 +128,10 @@ class Platform:
         try:
             err = r.json().get("error") or {}
             code, message = err.get("code"), err.get("message") or message
+            # Asıl gerekçe çoğu zaman details'te; genel mesaj yanıltıcı olabiliyor [ölçüldü 23.10.2026].
+            details = [d.get("message") for d in err.get("details") or [] if isinstance(d, dict)]
+            if any(details):
+                message = f"{message} ({'; '.join(str(d) for d in details if d)})"
         except (ValueError, AttributeError):
             pass
         text = redact(explain_http(r.status_code, code, str(message)), self.settings.api_key)

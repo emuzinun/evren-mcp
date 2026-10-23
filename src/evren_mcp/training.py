@@ -35,7 +35,8 @@ def build_body(
       sürümü sessizce seçiyor [yazarın ölçümleri].
     - `epochs` hyperparams içine yazılır: üst düzey `epochs` sessizce yok
       sayılıyor [ölçüldü 21.09.2026].
-    - `recipe` platformca yok sayılıyor (yazarın ölçümleri); uyum için "quick".
+    - `recipe` gönderilmez: platform recipe'li gövdeyi 422 ile reddediyor
+      [ölçüldü 23.10.2026].
     """
     if not _ARCH.match(architecture or ""):
         raise EvrenError(f"Geçersiz mimari adı: '{architecture}' (ör. yolov8n, yolo11s, rtdetr-l).")
@@ -52,7 +53,6 @@ def build_body(
         hp["imgsz"] = int(imgsz)
     body: dict = {
         "architecture": architecture,
-        "recipe": "quick",
         "gpu_count": 1,
         "dataset_version_id": validate_id(dataset_version_id, "veri sürümü kimliği"),
         "hyperparams": hp,
