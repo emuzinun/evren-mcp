@@ -5,6 +5,13 @@ sürümler [Anlamsal Sürümleme](https://semver.org/lang/tr/)'ye uyar.
 
 ## [Yayınlanmadı]
 
+### Düzeltildi
+
+- `estimate_training` yeniden çalışıyor (eğitim de onun teklifiyle başlar): platform artık
+  `recipe` alanını reddediyor, gövdeden çıkarıldı.
+- Platformun doğrulama hatalarında asıl gerekçe (`details`) artık hata
+  mesajında görünüyor.
+
 ## [0.2.0] — 19.10.2026
 
 ### Eklendi

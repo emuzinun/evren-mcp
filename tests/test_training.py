@@ -26,6 +26,7 @@ def test_body_pins_version_and_puts_epochs_in_hyperparams():
     assert b["hyperparams"] == {"epochs": 5, "batch": 16, "imgsz": 640}
     assert "epochs" not in b  # üst düzey epochs sessizce yok sayılıyor [ölçüldü 21.09]
     assert b["base_model_version_id"] == BASE
+    assert "recipe" not in b  # platform recipe'li gövdeyi 422 ile reddediyor [ölçüldü 23.10.2026]
 
 
 @pytest.mark.parametrize(

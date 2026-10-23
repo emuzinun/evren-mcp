@@ -95,6 +95,17 @@ def test_key_never_in_error_message(fake, platform):
     assert KEY not in str(e.value)
 
 
+def test_validation_details_reach_message(fake, platform):
+    err = {
+        "code": "VALIDATION_ERROR",
+        "message": "istek gövdesi eksik veya JSON olarak ayrıştırılamadı",
+        "details": [{"field": "", "message": "recipe/preset API'de desteklenmiyor", "type": "value_error"}],
+    }
+    fake.on("POST", "/training/jobs/dry-run", (422, {"success": False, "error": err}))
+    with pytest.raises(PlatformError, match="recipe/preset API'de desteklenmiyor"):
+        platform.post("/training/jobs/dry-run", json={}, retry=True)
+
+
 def test_key_only_sent_to_api_host(fake, platform, tmp_path):
     seen = {}
 
